@@ -31,11 +31,12 @@ func RunSetup(conf ConfigSetup) error {
 		if err := installer.Docker(ctx); err != nil {
 			return err
 		}
-		// install netdata
-		if ok, version, publicPort := isucontinuous.IsNetdataEnabled(); ok {
-			if err := installer.Netdata(ctx, version, publicPort); err != nil {
-				return err
-			}
+	}
+
+	// install netdata
+	if ok, version, publicPort := isucontinuous.IsNetdataEnabled(); isucontinuous.IsDockerEnabled() && ok {
+		if err := installer.Netdata(ctx, version, publicPort); err != nil {
+			return err
 		}
 	}
 

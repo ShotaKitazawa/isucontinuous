@@ -8,6 +8,8 @@ import (
 )
 
 func (i *Installer) Alp(ctx context.Context, version string) error {
+	i.log.Debug("### install alp ###")
+
 	if version == "latest" {
 		// TODO
 		// get release

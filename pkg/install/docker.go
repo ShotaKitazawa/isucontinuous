@@ -7,6 +7,8 @@ import (
 )
 
 func (i *Installer) Docker(ctx context.Context) error {
+	i.log.Debug("### install Docker ###")
+
 	stdout, stderr, err := i.runCommand(ctx, "", "curl -fsSL https://get.docker.com/ | sh")
 	if err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)

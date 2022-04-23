@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -13,6 +14,9 @@ var rootCmd = &cobra.Command{
 	Use:          "isucontinuous",
 	SilenceUsage: true,
 	Short:        "isucontinuous is Continuous Deployment, Benchmark, and Profiling tool!",
+	PostRun: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("output log to %s\n", logfile)
+	},
 }
 
 // Execute executes the root command.
