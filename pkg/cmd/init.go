@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"context"
+
+	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
@@ -15,11 +18,15 @@ type ConfigInit struct {
 }
 
 func RunInit(conf ConfigInit) error {
+	ctx := context.Background()
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
 		return err
 	}
+	return runInit(conf, ctx, logger)
+}
 
+func runInit(conf ConfigInit, ctx context.Context, logger *zap.Logger) error {
 	// Create local-repo if does not existed
 	repo, err := gitcommand.NewLocalRepo(logger, exec.New(), conf.LocalRepoPath, conf.GitUsername, conf.GitEmail, conf.GitRemoteUrl)
 	if err != nil {

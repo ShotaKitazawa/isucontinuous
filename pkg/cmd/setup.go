@@ -5,6 +5,7 @@ import (
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/install"
+	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 )
 
@@ -19,7 +20,10 @@ func RunSetup(conf ConfigSetup) error {
 		return err
 	}
 	installer := install.NewInstaller(logger, exec.New())
+	return runSetup(conf, ctx, logger, installer)
+}
 
+func runSetup(conf ConfigSetup, ctx context.Context, logger *zap.Logger, installer *install.Installer) error {
 	// load isucontinuous.yaml
 	isucontinuous, err := config.Load(conf.LocalRepoPath, isucontinuousFilename)
 	if err != nil {
