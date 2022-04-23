@@ -36,10 +36,10 @@ var (
 
 func init() {
 	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
-	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "INFO",
+	rootCmd.PersistentFlags().StringVarP(&logLevel, "log-level", "v", "INFO",
 		"log-level (DEBUG, INFO, or ERROR)")
-	rootCmd.PersistentFlags().StringVarP(&logfile, "logfile", "l", "/var/log/isucontinuous.log",
+	rootCmd.PersistentFlags().StringVarP(&logfile, "logfile", "f", "/var/log/isucontinuous.log",
 		"path of log file")
-	rootCmd.PersistentFlags().StringVarP(&localRepo, "local-repo", "r", filepath.Join(os.Getenv("HOME"), "isucontinuous"),
+	rootCmd.PersistentFlags().StringVarP(&localRepo, "local-repo", "l", filepath.Join(os.Getenv("HOME"), "isucontinuous"),
 		"local repository's path managed by isucontinuous")
 }

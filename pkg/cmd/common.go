@@ -31,7 +31,7 @@ func newLogger(logLevel, logfile string) (*zap.Logger, error) {
 	// setup log-level
 	failedParseFlag := false
 	level, err := zap.ParseAtomicLevel(logLevel)
-	if err != nil {
+	if err != nil || logLevel == "" {
 		failedParseFlag = true
 		level = zap.NewAtomicLevelAt(zapcore.Level(0)) // INFO
 	}
