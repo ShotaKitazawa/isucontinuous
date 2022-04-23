@@ -14,7 +14,7 @@ var rootCmd = &cobra.Command{
 	Use:          "isucontinuous",
 	SilenceUsage: true,
 	Short:        "isucontinuous is Continuous Deployment, Benchmark, and Profiling tool!",
-	PostRun: func(cmd *cobra.Command, args []string) {
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("output log to %s\n", logfile)
 	},
 }
