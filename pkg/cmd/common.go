@@ -10,12 +10,13 @@ const (
 )
 
 type ConfigCommon struct {
+	LogLevel      string
 	LogFilename   string
 	LocalRepoPath string
 }
 
 // TODO
-func newLogger(logfile string) (*zap.Logger, error) {
+func newLogger(logLevel, logfile string) (*zap.Logger, error) {
 	zc := zap.NewProductionConfig()
 	zc.Level = zap.NewAtomicLevelAt(zapcore.Level(-2))
 	z, err := zc.Build()

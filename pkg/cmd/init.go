@@ -15,7 +15,7 @@ type ConfigInit struct {
 }
 
 func RunInit(conf ConfigInit) error {
-	logger, err := newLogger(conf.LogFilename)
+	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
 		return err
 	}

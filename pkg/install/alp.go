@@ -9,6 +9,7 @@ import (
 
 func (i *Installer) Alp(ctx context.Context, version string) error {
 	if version == "latest" {
+		// TODO
 		// get release
 		// get latest tag
 	}
