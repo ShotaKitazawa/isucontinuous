@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	_ "embed"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/install"
