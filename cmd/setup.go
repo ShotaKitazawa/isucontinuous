@@ -10,6 +10,7 @@ var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Install some softwares",
 	RunE: func(c *cobra.Command, args []string) error {
+		executed = true
 		return cmd.RunSetup(cmd.ConfigSetup{
 			ConfigCommon: cmd.ConfigCommon{
 				LogFilename:   logfile,

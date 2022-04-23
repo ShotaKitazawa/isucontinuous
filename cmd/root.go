@@ -16,9 +16,13 @@ var rootCmd = &cobra.Command{
 	Short:        "isucontinuous is Continuous Deployment, Benchmark, and Profiling tool!",
 }
 
+var executed bool
+
 func Execute() {
 	err := rootCmd.Execute()
-	fmt.Printf("=> output log to %s\n", logfile)
+	if executed {
+		fmt.Printf("=> output log to %s\n", logfile)
+	}
 	if err != nil {
 		os.Exit(1)
 	}
