@@ -21,7 +21,7 @@ func RunSetup(conf ConfigSetup) error {
 	installer := install.NewInstaller(logger, exec.New())
 
 	// load isucontinuous.yaml
-	isucontinuous, err := config.Load(isucontinuousFilename)
+	isucontinuous, err := config.Load(conf.LocalRepoPath, isucontinuousFilename)
 	if err != nil {
 		return err
 	}

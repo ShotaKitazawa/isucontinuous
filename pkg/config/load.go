@@ -2,12 +2,13 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
 
-func Load(filename string) (*Config, error) {
-	f, err := os.ReadFile(filename)
+func Load(localRepo, filename string) (*Config, error) {
+	f, err := os.ReadFile(filepath.Join(localRepo, filename))
 	if err != nil {
 		return nil, err
 	}

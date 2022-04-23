@@ -16,7 +16,7 @@ func NewErrorFileAlreadyExisted(path string) FileAlreadyExisted {
 }
 
 func (e FileAlreadyExisted) Error() string {
-	return fmt.Sprintf("ERROR: %s: already existed.", e.path)
+	return fmt.Sprintf("%s already existed.", e.path)
 }
 
 /* IsNotDirectory */
@@ -30,7 +30,7 @@ func NewErrorIsNotDirectory(path string) IsNotDirectory {
 }
 
 func (e IsNotDirectory) Error() string {
-	return fmt.Sprintf("ERROR: %s is not directory.", e.path)
+	return fmt.Sprintf("%s is not directory.", e.path)
 }
 
 /* CommandExecutionFailed */
@@ -44,5 +44,5 @@ func NewErrorCommandExecutionFailed(stderr bytes.Buffer) CommandExecutionFailed 
 }
 
 func (e CommandExecutionFailed) Error() string {
-	return fmt.Sprintf("ERROR: command execution failed.\n%v", e.message)
+	return fmt.Sprintf("command execution failed.\n%v", e.message)
 }
