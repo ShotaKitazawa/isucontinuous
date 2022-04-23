@@ -12,15 +12,17 @@ var initCmd = &cobra.Command{
 	Short: "Initialize local repository",
 	RunE: func(c *cobra.Command, args []string) error {
 		executed = true
-		return cmd.RunInit(cmd.ConfigInit{
+		conf := cmd.ConfigInit{
 			ConfigCommon: cmd.ConfigCommon{
+				LogLevel:      logLevel,
 				LogFilename:   logfile,
 				LocalRepoPath: localRepo,
 			},
 			GitUsername:  gitUsername,
 			GitEmail:     gitEmail,
 			GitRemoteUrl: gitRemoteUrl,
-		})
+		}
+		return cmd.RunInit(conf)
 	},
 }
 

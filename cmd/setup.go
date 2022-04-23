@@ -11,12 +11,14 @@ var setupCmd = &cobra.Command{
 	Short: "Install some softwares",
 	RunE: func(c *cobra.Command, args []string) error {
 		executed = true
-		return cmd.RunSetup(cmd.ConfigSetup{
+		conf := cmd.ConfigSetup{
 			ConfigCommon: cmd.ConfigCommon{
+				LogLevel:      logLevel,
 				LogFilename:   logfile,
 				LocalRepoPath: localRepo,
 			},
-		})
+		}
+		return cmd.RunSetup(conf)
 	},
 }
 
