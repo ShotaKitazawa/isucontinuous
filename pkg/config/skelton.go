@@ -1,10 +1,11 @@
 package config
 
 import (
-	"os"
-
 	"gopkg.in/yaml.v3"
 )
+
+//go:embed skelton.yaml
+var skelton []byte
 
 func Skelton() (Config, error) {
 	f, err := SkeltonBytes()
@@ -19,9 +20,5 @@ func Skelton() (Config, error) {
 }
 
 func SkeltonBytes() ([]byte, error) {
-	f, err := os.ReadFile("./skelton.yaml")
-	if err != nil {
-		return nil, err
-	}
-	return f, nil
+	return skelton, nil
 }
