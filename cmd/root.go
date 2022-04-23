@@ -9,11 +9,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// RootCmd is reviewappctl root CLI command.
+// rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:          "isucontinuous",
 	SilenceUsage: true,
 	Short:        "isucontinuous is Continuous Deployment, Benchmark, and Profiling tool!",
+}
+
+func Execute() {
+	err := rootCmd.Execute()
+	fmt.Printf("=> output log to %s\n", logfile)
+	if err != nil {
+		os.Exit(1)
+	}
 }
 
 var (
@@ -22,8 +30,7 @@ var (
 	localRepo string
 )
 
-func getRootCmd(args []string) *cobra.Command {
-	rootCmd.SetArgs(args)
+func init() {
 	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "INFO",
 		"log-level (DEBUG, INFO, or ERROR)")
@@ -31,15 +38,4 @@ func getRootCmd(args []string) *cobra.Command {
 		"path of log file")
 	rootCmd.PersistentFlags().StringVarP(&localRepo, "local-repo", "r", filepath.Join(os.Getenv("HOME"), "isucontinuous"),
 		"local repository's path managed by isucontinuous")
-
-	return rootCmd
-}
-
-// Execute executes the root command.
-func Execute() {
-	err := getRootCmd(os.Args[1:]).Execute()
-	fmt.Printf("=> output log to %s\n", logfile)
-	if err != nil {
-		os.Exit(1)
-	}
 }

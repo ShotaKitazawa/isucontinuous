@@ -23,7 +23,7 @@ func NewLocalRepo(l *zap.Logger, e exec.Interface, path, username, email, remote
 	if _, err := os.Stat(path); err == nil {
 		return nil, myerrors.NewErrorFileAlreadyExisted(path)
 	}
-	if err := os.Mkdir(path, 0666); err != nil {
+	if err := os.Mkdir(path, 0755); err != nil {
 		return nil, err
 	}
 	localRepo := &LocalRepo{*l, e, path}
