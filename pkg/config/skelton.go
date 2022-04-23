@@ -1,6 +1,8 @@
 package config
 
 import (
+	_ "embed"
+
 	"gopkg.in/yaml.v3"
 )
 
