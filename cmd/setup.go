@@ -10,13 +10,14 @@ var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Install some softwares",
 	RunE: func(c *cobra.Command, args []string) error {
-		defer printPostRunMessage()
-		return cmd.RunSetup(cmd.ConfigSetup{
-			ConfigCommon: cmd.ConfigCommon{
-				LogFilename:   logfile,
-				LocalRepoPath: localRepo,
+		return wrapperFunc(cmd.RunSetup(
+			cmd.ConfigSetup{
+				ConfigCommon: cmd.ConfigCommon{
+					LogFilename:   logfile,
+					LocalRepoPath: localRepo,
+				},
 			},
-		})
+		))
 	},
 }
 

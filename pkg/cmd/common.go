@@ -23,8 +23,10 @@ func newLogger(logLevel, logfile string) (*zap.Logger, error) {
 		return nil, err
 	}
 
+	failedParseFlag := false
 	level, err := zap.ParseAtomicLevel(logLevel)
 	if err != nil {
+		failedParseFlag = true
 		level = zap.NewAtomicLevelAt(zapcore.Level(0)) // INFO
 	}
 	core := zapcore.NewCore(
@@ -32,5 +34,9 @@ func newLogger(logLevel, logfile string) (*zap.Logger, error) {
 		zapcore.AddSync(f),
 		level.Level(),
 	)
-	return zap.New(core), nil
+	logger := zap.New(core)
+	if failedParseFlag {
+		logger.Info("failed to parse log-level: set INFO")
+	}
+	return logger, nil
 }

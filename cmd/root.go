@@ -16,11 +16,13 @@ var rootCmd = &cobra.Command{
 	Short:        "isucontinuous is Continuous Deployment, Benchmark, and Profiling tool!",
 }
 
-// Execute executes the root command.
-func Execute() {
-	if err := getRootCmd(os.Args[1:]).Execute(); err != nil {
-		os.Exit(1)
+func wrapperFunc(err error) error {
+	if err != nil {
+		fmt.Println(err)
+		err = fmt.Errorf("")
 	}
+	fmt.Printf("=> output log to %s\n", logfile)
+	return err
 }
 
 var (
@@ -42,6 +44,9 @@ func getRootCmd(args []string) *cobra.Command {
 	return rootCmd
 }
 
-func printPostRunMessage() {
-	fmt.Printf("=> output log to %s\n", logfile)
+// Execute executes the root command.
+func Execute() {
+	if err := getRootCmd(os.Args[1:]).Execute(); err != nil {
+		os.Exit(1)
+	}
 }
