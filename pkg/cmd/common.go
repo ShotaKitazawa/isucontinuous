@@ -32,7 +32,7 @@ func newLogger(logLevel, logfile string) (*zap.Logger, error) {
 	core := zapcore.NewCore(
 		zapcore.NewConsoleEncoder(zap.NewProductionEncoderConfig()),
 		zapcore.AddSync(f),
-		level.Level(),
+		level,
 	)
 	logger := zap.New(core)
 	if failedParseFlag {

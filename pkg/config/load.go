@@ -47,7 +47,7 @@ func (c Config) IsAlpEnabled() (flag bool, version string) {
 	if c.Setup.Alp.Version == "" {
 		version = "latest"
 	} else {
-		version = c.Setup.Docker.Netdata.Version
+		version = c.Setup.Alp.Version
 	}
 	return true, version
 }
