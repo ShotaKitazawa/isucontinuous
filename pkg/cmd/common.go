@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -15,13 +17,20 @@ type ConfigCommon struct {
 	LocalRepoPath string
 }
 
-// TODO
 func newLogger(logLevel, logfile string) (*zap.Logger, error) {
-	zc := zap.NewProductionConfig()
-	zc.Level = zap.NewAtomicLevelAt(zapcore.Level(-2))
-	z, err := zc.Build()
+	f, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, err
 	}
-	return z, nil
+
+	level, err := zap.ParseAtomicLevel(logLevel)
+	if err != nil {
+		level = zap.NewAtomicLevelAt(zapcore.Level(0)) // INFO
+	}
+	core := zapcore.NewCore(
+		zapcore.NewConsoleEncoder(zap.NewProductionEncoderConfig()),
+		zapcore.AddSync(f),
+		level.Level(),
+	)
+	return zap.New(core), nil
 }

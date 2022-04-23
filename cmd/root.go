@@ -14,9 +14,6 @@ var rootCmd = &cobra.Command{
 	Use:          "isucontinuous",
 	SilenceUsage: true,
 	Short:        "isucontinuous is Continuous Deployment, Benchmark, and Profiling tool!",
-	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("output log to %s\n", logfile)
-	},
 }
 
 // Execute executes the root command.
@@ -43,4 +40,8 @@ func getRootCmd(args []string) *cobra.Command {
 		"local repository's path managed by isucontinuous")
 
 	return rootCmd
+}
+
+func printPostRunMessage() {
+	fmt.Printf("=> output log to %s\n", logfile)
 }
