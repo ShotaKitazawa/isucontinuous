@@ -3,8 +3,9 @@ package install
 import (
 	"context"
 
-	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 	"go.uber.org/zap"
+
+	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 )
 
 func (i *Installer) Docker(ctx context.Context) error {

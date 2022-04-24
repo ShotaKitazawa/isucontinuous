@@ -6,23 +6,23 @@ import (
 	"github.com/ShotaKitazawa/isucontinuous/pkg/cmd"
 )
 
-// setupCmd represents the setup command
-var setupCmd = &cobra.Command{
-	Use:   "setup",
-	Short: "Install some softwares",
+// importCmd represents the import command
+var importCmd = &cobra.Command{
+	Use:   "import",
+	Short: "Import some files from hosts[].deploy.files[].target",
 	RunE: func(c *cobra.Command, args []string) error {
 		executed = true
-		conf := cmd.ConfigSetup{
+		conf := cmd.ConfigImport{
 			ConfigCommon: cmd.ConfigCommon{
 				LogLevel:      logLevel,
 				LogFilename:   logfile,
 				LocalRepoPath: localRepo,
 			},
 		}
-		return cmd.RunSetup(conf)
+		return cmd.RunImport(conf)
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(setupCmd)
+	rootCmd.AddCommand(importCmd)
 }

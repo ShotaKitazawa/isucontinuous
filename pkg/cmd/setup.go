@@ -3,11 +3,12 @@ package cmd
 import (
 	"context"
 
+	"go.uber.org/zap"
+	"k8s.io/utils/exec"
+
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/install"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
-	"go.uber.org/zap"
-	"k8s.io/utils/exec"
 )
 
 type ConfigSetup struct {

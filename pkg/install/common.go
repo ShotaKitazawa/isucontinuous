@@ -1,8 +1,9 @@
 package install
 
 import (
-	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"go.uber.org/zap"
+
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 )
 
 type Installer struct {

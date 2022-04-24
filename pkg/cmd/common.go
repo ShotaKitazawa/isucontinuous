@@ -4,10 +4,11 @@ import (
 	"context"
 	"os"
 
-	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 )
 
 const (

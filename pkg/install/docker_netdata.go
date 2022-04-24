@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 	"go.uber.org/zap"
+
+	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 )
 
 const (
