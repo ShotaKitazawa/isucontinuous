@@ -11,9 +11,7 @@ func (i *Installer) Alp(ctx context.Context, version string) error {
 	i.log.Info("### install alp ###")
 
 	// ealry return if alp has already installed
-	if stdout, stderr, err := i.runCommand(ctx, "", "which -a alp"); err != nil {
-		return myerrors.NewErrorCommandExecutionFailed(stderr)
-	} else if len(stdout.Bytes()) != 0 {
+	if stdout, _, _ := i.runCommand(ctx, "", "which -a alp"); len(stdout.Bytes()) != 0 {
 		i.log.Info("... alp has already been installed")
 		return nil
 	}
