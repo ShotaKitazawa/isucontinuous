@@ -40,6 +40,6 @@ func init() {
 		"log-level (DEBUG, INFO, or ERROR)")
 	rootCmd.PersistentFlags().StringVarP(&logfile, "logfile", "f", "/var/log/isucontinuous.log",
 		"path of log file")
-	rootCmd.PersistentFlags().StringVarP(&localRepo, "local-repo", "l", filepath.Join(os.Getenv("HOME"), "isucontinuous"),
+	rootCmd.PersistentFlags().StringVarP(&localRepo, "local-repo", "l", filepath.Join(os.Getenv("HOME"), "isucon-repo"),
 		"local repository's path managed by isucontinuous")
 }
