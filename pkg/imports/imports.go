@@ -52,7 +52,7 @@ func (l *Importer) GetFileContent(ctx context.Context, path string) ([]byte, os.
 	if err != nil {
 		return nil, 0, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	mode, err := strconv.Atoi(stdout.String())
+	mode, err := strconv.Atoi(strings.TrimRight(stdout.String(), "\n"))
 	if err != nil {
 		return nil, 0, err
 	}
