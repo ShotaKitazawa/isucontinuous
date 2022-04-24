@@ -11,11 +11,12 @@ import (
 
 type SshClient struct {
 	ssh.ClientConfig
+	host   string
 	target string
 }
 
 func (c *SshClient) Host() string {
-	return c.target
+	return c.host
 }
 
 func NewSshClient(host string, port int, user, password, keyfile string) (*SshClient, error) {
@@ -56,7 +57,7 @@ func NewSshClient(host string, port int, user, password, keyfile string) (*SshCl
 	if _, err := ssh.Dial("tcp", target, &config); err != nil {
 		return nil, fmt.Errorf("unable to connect: %v", err)
 	}
-	return &SshClient{config, target}, nil
+	return &SshClient{config, host, target}, nil
 }
 
 func (c *SshClient) RunCommand(ctx context.Context, basedir string, command string) (bytes.Buffer, bytes.Buffer, error) {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
@@ -66,16 +65,4 @@ func (l *LocalRepo) CreateFile(name string, data []byte, perm os.FileMode) error
 		}
 	}
 	return os.WriteFile(filepath.Join(l.absPath, name), data, perm)
-}
-
-func (l *LocalRepo) ListUntrackedFiles(ctx context.Context) ([]string, error) {
-	stdout, stderr, err := l.shell.RunCommand(ctx, l.absPath, "git ls-files --others --exclude-standard")
-	if err != nil {
-		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
-	}
-	return strings.Split(stdout.String(), "\n"), nil
-}
-
-func (l *LocalRepo) Clear() {
-	_, _, _ = l.shell.RunCommand(context.Background(), "", fmt.Sprintf(`rm -rf "%s"`, filepath.Join(l.absPath, ".git")))
 }
