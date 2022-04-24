@@ -1,8 +1,13 @@
 package install
 
 import (
+	"archive/zip"
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 
 	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 )
@@ -30,13 +35,42 @@ func (i *Installer) Alp(ctx context.Context, version string) error {
 	}
 	i.log.Debug(stdout.String())
 
-	command = "unzip -f /tmp/alp -d /usr/local/bin"
-	stdout, stderr, err = i.runCommand(ctx, "", command)
-	if err != nil {
+	if err := i.unzip("/tmp/alp.zip", "/usr/local/bin/"); err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	i.log.Debug(stdout.String())
 
 	i.log.Info("... installed alp!")
+	return nil
+}
+
+func (i *Installer) unzip(src, dest string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+		if f.FileInfo().IsDir() {
+			path := filepath.Join(dest, f.Name)
+			if err := os.MkdirAll(path, f.Mode()); err != nil {
+				return err
+			}
+		} else {
+			buf := make([]byte, f.UncompressedSize)
+			_, err = io.ReadFull(rc, buf)
+			if err != nil {
+				return err
+			}
+			path := filepath.Join(dest, f.Name)
+			if err = ioutil.WriteFile(path, buf, f.Mode()); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
