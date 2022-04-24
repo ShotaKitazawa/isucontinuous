@@ -29,11 +29,11 @@ const (
 	IsDirectory
 )
 
-func (l *Importer) Tmp(ctx context.Context, path string) int {
-	if _, _, err := l.shell.RunCommand(ctx, "", "test -f "+path); err != nil {
+func (l *Importer) FileType(ctx context.Context, path string) int {
+	if _, _, err := l.shell.RunCommand(ctx, "", "test ! -f "+path); err != nil {
 		return IsFile
 	}
-	if _, _, err := l.shell.RunCommand(ctx, "", "test -d "+path); err != nil {
+	if _, _, err := l.shell.RunCommand(ctx, "", "test ! -d "+path); err != nil {
 		return IsDirectory
 	}
 	return IsNotFound

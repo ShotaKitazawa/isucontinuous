@@ -65,7 +65,7 @@ func runImport(
 	return perHostExec(logger, ctx, hosts, func(ctx context.Context, host config.Host) error {
 		importer := importers[host.Host]
 		for _, target := range host.ListTarget() {
-			switch importer.Tmp(ctx, target.Target) {
+			switch importer.FileType(ctx, target.Target) {
 			case imports.IsNotFound:
 				logger.Info(fmt.Sprintf("%s is not found: skip", target.Target), zap.String("host", host.Host))
 				continue
