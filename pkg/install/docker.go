@@ -5,7 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
-	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
+	myerrors "github.com/ShotaKitazawa/isu-continuous/pkg/errors"
 )
 
 func (i *Installer) Docker(ctx context.Context) error {

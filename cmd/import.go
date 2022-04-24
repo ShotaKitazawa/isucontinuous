@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/ShotaKitazawa/isucontinuous/pkg/cmd"
+	"github.com/ShotaKitazawa/isu-continuous/pkg/cmd"
 )
 
 // importCmd represents the import command

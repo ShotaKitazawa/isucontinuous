@@ -9,8 +9,8 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 
-	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
-	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
+	myerrors "github.com/ShotaKitazawa/isu-continuous/pkg/errors"
+	"github.com/ShotaKitazawa/isu-continuous/pkg/shell"
 )
 
 type LocalRepo struct {

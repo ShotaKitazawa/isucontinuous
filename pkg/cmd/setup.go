@@ -6,9 +6,9 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 
-	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
-	"github.com/ShotaKitazawa/isucontinuous/pkg/install"
-	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
+	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
+	"github.com/ShotaKitazawa/isu-continuous/pkg/install"
+	"github.com/ShotaKitazawa/isu-continuous/pkg/shell"
 )
 
 type ConfigSetup struct {
