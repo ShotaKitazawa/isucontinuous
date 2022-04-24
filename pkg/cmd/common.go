@@ -19,7 +19,7 @@ type ConfigCommon struct {
 
 func newLogger(logLevel, logfile string) (*zap.Logger, error) {
 	// setup encorder
-	enc := zapcore.NewConsoleEncoder(zap.NewProductionEncoderConfig())
+	enc := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	// setup syncer
 	f, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
