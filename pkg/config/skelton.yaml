@@ -18,7 +18,7 @@ hosts:
       rm -f "${env.SLOWLOG_PATH}";
     post_pommand: >
       sudo systemctl restart isucondition.go.service
-    files:
+    targets:
     - src: nginx
       target: /etc/nginx
     - src: mysql
