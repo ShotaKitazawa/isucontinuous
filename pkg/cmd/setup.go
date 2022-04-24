@@ -44,7 +44,7 @@ func RunSetup(conf ConfigSetup) error {
 }
 
 func runSetup(conf ConfigSetup, ctx context.Context, logger *zap.Logger, isucontinuous *config.Config, installers map[string]*install.Installer) error {
-	return perHostExec(logger, isucontinuous.Hosts, func(host config.Host) error {
+	return perHostExec(logger, ctx, isucontinuous.Hosts, func(ctx context.Context, host config.Host) error {
 		installer := installers[host.Host]
 		// install docker
 		if isucontinuous.IsDockerEnabled() {

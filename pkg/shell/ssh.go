@@ -14,6 +14,10 @@ type SshClient struct {
 	target string
 }
 
+func (c *SshClient) Host() string {
+	return c.target
+}
+
 func NewSshClient(host string, port int, user, password, keyfile string) (*SshClient, error) {
 	var config ssh.ClientConfig
 	switch {

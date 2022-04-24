@@ -15,6 +15,10 @@ func NewLocalClient(e exec.Interface) *LocalClient {
 	return &LocalClient{e}
 }
 
+func (c *LocalClient) Host() string {
+	return "localhost"
+}
+
 func (c *LocalClient) RunCommand(ctx context.Context, basedir string, cmd string) (bytes.Buffer, bytes.Buffer, error) {
 
 	stdout := bytes.Buffer{}

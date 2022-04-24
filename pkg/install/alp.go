@@ -9,15 +9,17 @@ import (
 	"os"
 	"path/filepath"
 
+	"go.uber.org/zap"
+
 	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 )
 
 func (i *Installer) Alp(ctx context.Context, version string) error {
-	i.log.Info("### install alp ###")
+	i.log.Info("### install alp ###", zap.String("host", i.shell.Host()))
 
 	// ealry return if alp has already installed
 	if stdout, _, _ := i.shell.RunCommand(ctx, "", "which -a alp"); len(stdout.Bytes()) != 0 {
-		i.log.Info("... alp has already been installed")
+		i.log.Info("... alp has already been installed", zap.String("host", i.shell.Host()))
 		return nil
 	}
 
@@ -33,13 +35,13 @@ func (i *Installer) Alp(ctx context.Context, version string) error {
 	if err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	i.log.Debug(stdout.String())
+	i.log.Debug(stdout.String(), zap.String("host", i.shell.Host()))
 
 	if err := i.unzip("/tmp/alp.zip", "/usr/local/bin/"); err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 
-	i.log.Info("... installed alp!")
+	i.log.Info("... installed alp!", zap.String("host", i.shell.Host()))
 	return nil
 }
 

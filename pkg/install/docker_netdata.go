@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
+	"go.uber.org/zap"
 )
 
 const (
@@ -12,14 +13,14 @@ const (
 )
 
 func (i *Installer) Netdata(ctx context.Context, version string, publicPort int) error {
-	i.log.Info("### install Netdata ###")
+	i.log.Info("### install Netdata ###", zap.String("host", i.shell.Host()))
 
 	// ealry return if netdata has already installed
 	command := fmt.Sprintf(
 		"docker container ps -f name=%s --format {{.ID}}",
 		containerName)
 	if stdout, _, _ := i.shell.RunCommand(ctx, "", command); len(stdout.Bytes()) != 0 {
-		i.log.Info("... Netdata has already been installed")
+		i.log.Info("... Netdata has already been installed", zap.String("host", i.shell.Host()))
 		return nil
 	}
 
@@ -42,8 +43,8 @@ docker run -itd -p %d:19999 \
 	if err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	i.log.Debug(stdout.String())
+	i.log.Debug(stdout.String(), zap.String("host", i.shell.Host()))
 
-	i.log.Info("... installed Netdata!")
+	i.log.Info("... installed Netdata!", zap.String("host", i.shell.Host()))
 	return nil
 }

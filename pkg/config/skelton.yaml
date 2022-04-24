@@ -7,7 +7,7 @@ setup:
     version: v1.0.8
 slack:
   default_channel: ""
-targets:
+hosts:
 - host: localhost
   user: root
   key: /root/.ssh/id_rsa

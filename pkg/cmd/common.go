@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"fmt"
+	"context"
 	"os"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
@@ -45,19 +45,19 @@ func newLogger(logLevel, logfile string) (*zap.Logger, error) {
 	return logger, nil
 }
 
-func perHostExec(logger *zap.Logger, hosts []config.Host, f func(config.Host) error) error {
-	var eg errgroup.Group
+func perHostExec(logger *zap.Logger, ctx context.Context, hosts []config.Host, f func(context.Context, config.Host) error) error {
+	eg, ctx := errgroup.WithContext(ctx)
 	for _, host := range hosts {
 		host := host
 		eg.Go(func() error {
 			// view.XXX
-			if err := f(host); err != nil {
-				logger.Error(fmt.Sprintf("in host %s:\n%v", host.Host, err))
+			if err := f(ctx, host); err != nil {
+				logger.Error(err.Error(), zap.String("host", host.Host))
 			}
 			return nil
 		})
 	}
-	if err := eg.Wait(); err != nil { // 実行が終わるまで待つ
+	if err := eg.Wait(); err != nil {
 		return err
 	}
 	return nil

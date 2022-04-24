@@ -41,7 +41,7 @@ func runImport(conf ConfigImport, ctx context.Context, logger *zap.Logger) error
 		return err
 	}
 	// Import files from per host
-	err = perHostExec(logger, hosts, func(host config.Host) error {
+	err = perHostExec(logger, ctx, hosts, func(ctx context.Context, host config.Host) error {
 		// Import files
 		for _, target := range host.ListTarget() {
 			// if target is not file, notice to INFO and skip
