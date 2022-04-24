@@ -10,12 +10,12 @@ func (i *Installer) Docker(ctx context.Context) error {
 	i.log.Info("### install Docker ###")
 
 	// ealry return if Docker has already installed
-	if stdout, _, _ := i.runCommand(ctx, "", "which -a docker"); len(stdout.Bytes()) != 0 {
+	if stdout, _, _ := i.shell.RunCommand(ctx, "", "which -a docker"); len(stdout.Bytes()) != 0 {
 		i.log.Info("... Docker has already been installed")
 		return nil
 	}
 
-	stdout, stderr, err := i.runCommand(ctx, "", "curl -fsSL https://get.docker.com/ | sh")
+	stdout, stderr, err := i.shell.RunCommand(ctx, "", "curl -fsSL https://get.docker.com/ | sh")
 	if err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}

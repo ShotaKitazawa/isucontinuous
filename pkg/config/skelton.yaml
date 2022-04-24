@@ -8,7 +8,7 @@ setup:
 slack:
   default_channel: ""
 targets:
-- host: x.x.x.x
+- host: localhost
   user: root
   key: /root/.ssh/id_rsa
   deploy:

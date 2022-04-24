@@ -16,7 +16,7 @@ func (i *Installer) Alp(ctx context.Context, version string) error {
 	i.log.Info("### install alp ###")
 
 	// ealry return if alp has already installed
-	if stdout, _, _ := i.runCommand(ctx, "", "which -a alp"); len(stdout.Bytes()) != 0 {
+	if stdout, _, _ := i.shell.RunCommand(ctx, "", "which -a alp"); len(stdout.Bytes()) != 0 {
 		i.log.Info("... alp has already been installed")
 		return nil
 	}
@@ -29,7 +29,7 @@ func (i *Installer) Alp(ctx context.Context, version string) error {
 	command := fmt.Sprintf(
 		"curl -sL https://github.com/tkuchiki/alp/releases/download/%s/alp_linux_amd64.zip -o /tmp/alp.zip",
 		version)
-	stdout, stderr, err := i.runCommand(ctx, "", command)
+	stdout, stderr, err := i.shell.RunCommand(ctx, "", command)
 	if err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}

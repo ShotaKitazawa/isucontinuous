@@ -5,6 +5,7 @@ import (
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/install"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 )
@@ -19,37 +20,50 @@ func RunSetup(conf ConfigSetup) error {
 	if err != nil {
 		return err
 	}
-	installer := install.NewInstaller(logger, exec.New())
-	return runSetup(conf, ctx, logger, installer)
-}
-
-func runSetup(conf ConfigSetup, ctx context.Context, logger *zap.Logger, installer *install.Installer) error {
 	// load isucontinuous.yaml
 	isucontinuous, err := config.Load(conf.LocalRepoPath, isucontinuousFilename)
 	if err != nil {
 		return err
 	}
-
-	// install docker
-	if isucontinuous.IsDockerEnabled() {
-		if err := installer.Docker(ctx); err != nil {
-			return err
+	// set installers
+	installers := make(map[string]*install.Installer)
+	for _, host := range isucontinuous.Hosts {
+		var s shell.Iface
+		if host.IsLocal() {
+			s = shell.NewLocalClient(exec.New())
+		} else {
+			s, err = shell.NewSshClient(host.Host, host.Port, host.User, host.Password, host.Key)
+			if err != nil {
+				return err
+			}
 		}
+		installers[host.Host] = install.NewInstaller(logger, s)
 	}
 
-	// install netdata
-	if ok, version, publicPort := isucontinuous.IsNetdataEnabled(); isucontinuous.IsDockerEnabled() && ok {
-		if err := installer.Netdata(ctx, version, publicPort); err != nil {
-			return err
-		}
-	}
+	return runSetup(conf, ctx, logger, isucontinuous, installers)
+}
 
-	// install alp
-	if ok, version := isucontinuous.IsAlpEnabled(); ok {
-		if err := installer.Alp(ctx, version); err != nil {
-			return err
+func runSetup(conf ConfigSetup, ctx context.Context, logger *zap.Logger, isucontinuous *config.Config, installers map[string]*install.Installer) error {
+	return perHostExec(logger, isucontinuous.Hosts, func(host config.Host) error {
+		installer := installers[host.Host]
+		// install docker
+		if isucontinuous.IsDockerEnabled() {
+			if err := installer.Docker(ctx); err != nil {
+				return err
+			}
 		}
-	}
-
-	return nil
+		// install netdata
+		if ok, version, publicPort := isucontinuous.IsNetdataEnabled(); isucontinuous.IsDockerEnabled() && ok {
+			if err := installer.Netdata(ctx, version, publicPort); err != nil {
+				return err
+			}
+		}
+		// install alp
+		if ok, version := isucontinuous.IsAlpEnabled(); ok {
+			if err := installer.Alp(ctx, version); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
