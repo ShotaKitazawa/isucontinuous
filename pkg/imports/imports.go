@@ -79,5 +79,5 @@ func (l *Importer) ListUntrackedFiles(ctx context.Context, path string) ([]strin
 	if err != nil {
 		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	return strings.Split(stdout.String(), "\n"), nil
+	return strings.Split(strings.TrimRight(stdout.String(), "\n"), "\n"), nil
 }

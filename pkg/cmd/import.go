@@ -88,7 +88,7 @@ func runImport(
 					if err != nil {
 						return err
 					}
-					if err := repo.CreateFile(filepath.Join(host.Host, target.Src), content, mode); err != nil {
+					if err := repo.CreateFile(filepath.Join(host.Host, target.Src, file), content, mode); err != nil {
 						return err
 					}
 				}
