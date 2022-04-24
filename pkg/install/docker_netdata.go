@@ -12,17 +12,17 @@ const (
 )
 
 func (i *Installer) Netdata(ctx context.Context, version string, publicPort int) error {
-	i.log.Debug("### install Netdata ###")
+	i.log.Info("### install Netdata ###")
 
+	// ealry return if netdata has already installed
 	command := fmt.Sprintf(
 		"docker container ps -f name=%s --format {{.ID}}",
 		containerName)
 	stdout, stderr, err := i.runCommand(ctx, "", command)
 	if err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
-	} else if len(stdout.Bytes()) == 0 {
-		// ealry return because already installed
-		i.log.Debug("Netdata has already been running")
+	} else if len(stdout.Bytes()) != 0 {
+		i.log.Info("... Netdata has already been installed")
 		return nil
 	}
 
@@ -46,5 +46,7 @@ docker run -itd -p %d:19999 \
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	i.log.Debug(stdout.String())
+
+	i.log.Info("... installed Netdata!")
 	return nil
 }
