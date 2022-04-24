@@ -63,7 +63,6 @@ type Alp struct {
 
 type Slack struct {
 	DefaultChannel string `json:"default_channel,omitempty"`
-	Token          string `json:"token,omitempty"`
 }
 
 type Host struct {
