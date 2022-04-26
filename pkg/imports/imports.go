@@ -47,7 +47,7 @@ func (l *Importer) GetFileContent(ctx context.Context, path string) ([]byte, os.
 		return nil, 0, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	content := stdout.Bytes()
-	stdout, stderr, err = l.shell.Execf(ctx, "", "stat %s -c '%a'", path)
+	stdout, stderr, err = l.shell.Exec(ctx, "", "stat "+path+" -c '%a'")
 	if err != nil {
 		return nil, 0, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
