@@ -37,8 +37,8 @@ func (c *LocalClient) Exec(ctx context.Context, basedir string, cmd string) (byt
 	return stdout, stderr, nil
 }
 
-func (c *LocalClient) Execf(ctx context.Context, basedir string, cmd string, a ...string) (bytes.Buffer, bytes.Buffer, error) {
-	return c.Exec(ctx, basedir, fmt.Sprintf(cmd, a))
+func (c *LocalClient) Execf(ctx context.Context, basedir string, cmd string, a ...interface{}) (bytes.Buffer, bytes.Buffer, error) {
+	return c.Exec(ctx, basedir, fmt.Sprintf(cmd, a...))
 }
 
 func (c *LocalClient) Deploy(ctx context.Context, src, dst string) error {

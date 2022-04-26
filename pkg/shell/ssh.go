@@ -85,8 +85,8 @@ func (c *SshClient) Exec(ctx context.Context, basedir string, command string) (b
 	return stdout, stderr, nil
 }
 
-func (c *SshClient) Execf(ctx context.Context, basedir string, cmd string, a ...string) (bytes.Buffer, bytes.Buffer, error) {
-	return c.Exec(ctx, basedir, fmt.Sprintf(cmd, a))
+func (c *SshClient) Execf(ctx context.Context, basedir string, cmd string, a ...interface{}) (bytes.Buffer, bytes.Buffer, error) {
+	return c.Exec(ctx, basedir, fmt.Sprintf(cmd, a...))
 }
 
 func (c *SshClient) Deploy(ctx context.Context, src, dst string) error {
