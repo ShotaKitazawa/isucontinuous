@@ -62,10 +62,10 @@ func runDeploy(
 		return err
 	}
 	// Fetch remote-repo & switch to gitRevision
-	if err := repo.Fetch(); err != nil {
+	if err := repo.Fetch(ctx); err != nil {
 		return err
 	}
-	if err := repo.Switch(conf.GitRevision); err != nil {
+	if err := repo.SwitchDetachedBranch(ctx, conf.GitRevision); err != nil {
 		return err
 	}
 	// Deploy files to per host
@@ -85,15 +85,15 @@ func runDeploy(
 			}
 		}()
 		// Execute preCommand
-		if err = deployer.RunCommand(host.Deploy.PreCommand); err != nil {
+		if err = deployer.RunCommand(ctx, host.Deploy.PreCommand); err != nil {
 			return err
 		}
 		// Deploy
-		if err = deployer.Deploy(host.Deploy.Targets); err != nil {
+		if err = deployer.Deploy(ctx, host.Deploy.Targets); err != nil {
 			return err
 		}
 		// Execute postCommand
-		if err = deployer.RunCommand(host.Deploy.PostCommand); err != nil {
+		if err = deployer.RunCommand(ctx, host.Deploy.PostCommand); err != nil {
 			return err
 		}
 		return nil

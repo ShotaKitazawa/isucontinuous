@@ -20,7 +20,7 @@ func (i *Installer) Netdata(ctx context.Context, version string, publicPort int)
 	command := fmt.Sprintf(
 		"docker container ps -f name=%s --format {{.ID}}",
 		containerName)
-	if stdout, _, _ := i.shell.RunCommand(ctx, "", command); len(stdout.Bytes()) != 0 {
+	if stdout, _, _ := i.shell.Exec(ctx, "", command); len(stdout.Bytes()) != 0 {
 		i.log.Info("... Netdata has already been installed", zap.String("host", i.shell.Host()))
 		return nil
 	}
@@ -40,7 +40,7 @@ docker run -itd -p %d:19999 \
   --security-opt apparmor=unconfined \
   --name=%s \
   netdata/netdata:%s`, publicPort, containerName, version)
-	stdout, stderr, err := i.shell.RunCommand(ctx, "", command)
+	stdout, stderr, err := i.shell.Exec(ctx, "", command)
 	if err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}

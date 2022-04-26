@@ -7,5 +7,7 @@ import (
 
 type Iface interface {
 	Host() string
-	RunCommand(ctx context.Context, basedir string, command string) (bytes.Buffer, bytes.Buffer, error)
+	Exec(ctx context.Context, basedir string, command string) (bytes.Buffer, bytes.Buffer, error)
+	Execf(ctx context.Context, basedir string, command string, a ...string) (bytes.Buffer, bytes.Buffer, error)
+	Deploy(ctx context.Context, src, dst string) error
 }
