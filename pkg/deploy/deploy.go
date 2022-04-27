@@ -17,20 +17,22 @@ import (
 )
 
 type Deployer struct {
-	log      *zap.Logger
-	shell    shell.Iface
-	template *template.Templator
+	log           *zap.Logger
+	shell         shell.Iface
+	template      *template.Templator
+	localRepoPath string
 }
 
-func New(logger *zap.Logger, s shell.Iface, templator *template.Templator) *Deployer {
-	return &Deployer{logger, s, templator}
+func New(logger *zap.Logger, s shell.Iface, templator *template.Templator, localRepoPath string) *Deployer {
+	return &Deployer{logger, s, templator, localRepoPath}
 }
 
 func (d Deployer) Deploy(ctx context.Context, targets []config.DeployTarget) error {
 	for _, target := range targets {
-		if err := filepath.WalkDir(target.Src, func(path string, info fs.DirEntry, err error) error {
+		src := filepath.Join(d.localRepoPath, d.shell.Host(), target.Src)
+		if err := filepath.WalkDir(src, func(path string, info fs.DirEntry, err error) error {
 			if info != nil && !reflect.ValueOf(info).IsNil() && !info.IsDir() {
-				dst := filepath.Join(target.Target, strings.TrimLeft(path, target.Src))
+				dst := filepath.Join(target.Target, strings.TrimLeft(path, src))
 				d.log.Debug(fmt.Sprintf("deploy %s to %s", path, dst), zap.String("host", d.shell.Host()))
 				return d.shell.Deploy(ctx, path, dst)
 			}
