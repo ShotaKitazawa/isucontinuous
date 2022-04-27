@@ -49,6 +49,11 @@ func (d Deployer) Deploy(ctx context.Context, targets []config.DeployTarget) err
 }
 
 func (d Deployer) RunCommand(ctx context.Context, command string) error {
+	var err error
+	command, err = d.template.Exec(command)
+	if err != nil {
+		return err
+	}
 	d.log.Debug(fmt.Sprintf(`exec command: "%s"`, command), zap.String("host", d.shell.Host()))
 	_, stderr, err := d.shell.Exec(ctx, "", command)
 	if err != nil {
