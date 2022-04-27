@@ -3,7 +3,7 @@ package config
 type Config struct {
 	Setup Setup  `yaml:"setup,omitempty"`
 	Slack Slack  `yaml:"slack,omitempty"`
-	Hosts []Host `yaml:"targets,omitempty"`
+	Hosts []Host `yaml:"hosts,omitempty"`
 }
 
 func (c Config) IsDockerEnabled() bool {
