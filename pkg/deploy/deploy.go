@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"go.uber.org/zap"
@@ -28,7 +29,7 @@ func New(logger *zap.Logger, s shell.Iface, templator *template.Templator) *Depl
 func (d Deployer) Deploy(ctx context.Context, targets []config.DeployTarget) error {
 	for _, target := range targets {
 		if err := filepath.WalkDir(target.Src, func(path string, info fs.DirEntry, err error) error {
-			if !info.IsDir() {
+			if info != nil && reflect.ValueOf(info).IsNil() && !info.IsDir() {
 				dst := filepath.Join(target.Target, strings.TrimLeft(path, target.Src))
 				d.log.Debug(fmt.Sprintf("deploy %s to %s", path, dst), zap.String("host", d.shell.Host()))
 				return d.shell.Deploy(ctx, path, dst)
