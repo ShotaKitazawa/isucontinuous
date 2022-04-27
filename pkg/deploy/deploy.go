@@ -32,7 +32,7 @@ func (d Deployer) Deploy(ctx context.Context, targets []config.DeployTarget) err
 		src := filepath.Join(d.localRepoPath, d.shell.Host(), target.Src)
 		if err := filepath.WalkDir(src, func(path string, info fs.DirEntry, err error) error {
 			if info != nil && !reflect.ValueOf(info).IsNil() && !info.IsDir() {
-				dst := filepath.Join(target.Target, strings.TrimLeft(path, src))
+				dst := filepath.Join(target.Target, strings.TrimPrefix(path, src))
 				d.log.Debug(fmt.Sprintf("deploy %s to %s", path, dst), zap.String("host", d.shell.Host()))
 				return d.shell.Deploy(ctx, path, dst)
 			}
