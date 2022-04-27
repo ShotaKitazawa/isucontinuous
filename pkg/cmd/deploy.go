@@ -45,7 +45,7 @@ func RunDeploy(conf ConfigDeploy) error {
 				return err
 			}
 		}
-		deployers[host.Host] = deploy.New(logger, s, templator)
+		deployers[host.Host] = deploy.New(logger, s, templator, conf.LocalRepoPath)
 	}
 	slackClient := slack.NewClient(logger, conf.SlackToken, isucontinuous.Slack.DefaultChannel)
 	return runDeploy(conf, ctx, logger, isucontinuous, deployers, slackClient)
