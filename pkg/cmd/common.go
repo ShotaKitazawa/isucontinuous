@@ -54,6 +54,7 @@ func perHostExec(logger *zap.Logger, ctx context.Context, hosts []config.Host, f
 			// view.XXX
 			if err := f(ctx, host); err != nil {
 				logger.Error(err.Error(), zap.String("host", host.Host))
+				return err
 			}
 			return nil
 		})
