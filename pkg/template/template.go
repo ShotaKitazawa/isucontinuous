@@ -47,5 +47,4 @@ func (t Templator) Exec(text string) (string, error) {
 		return "", fmt.Errorf("Error to parse template: %w", err)
 	}
 	return val.String(), nil
-
 }
