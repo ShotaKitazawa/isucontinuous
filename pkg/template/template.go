@@ -35,6 +35,9 @@ func New(gitRevision string) *Templator {
 }
 
 func (t Templator) Exec(text string) (string, error) {
+	if text == "" {
+		return "", nil
+	}
 	tmpl, err := engine.Parse(text)
 	if err != nil {
 		return "", fmt.Errorf("Error to parse template: %w", err)
