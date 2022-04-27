@@ -3,9 +3,9 @@ package template
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 	"os"
 	"strings"
+	"text/template"
 )
 
 var engine = template.New("Templating").Option("missingkey=error")
