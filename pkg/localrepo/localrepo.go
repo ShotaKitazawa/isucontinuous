@@ -74,7 +74,7 @@ func (l *LocalRepo) Fetch(ctx context.Context) error {
 }
 
 func (l *LocalRepo) SwitchDetachedBranch(ctx context.Context, revision string) error {
-	if _, stderr, err := l.shell.Execf(ctx, l.absPath, "git checkout -d remotes/origin/%s", revision); err != nil {
+	if _, stderr, err := l.shell.Execf(ctx, l.absPath, "git checkout -d remotes/origin/%s || git checkout -d %s", revision, revision); err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	return nil

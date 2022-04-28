@@ -35,7 +35,7 @@ var (
 
 func init() {
 	rootCmd.AddCommand(deployCmd)
-	deployCmd.PersistentFlags().StringVarP(&gitRevision, "revision", "s", "master",
+	deployCmd.PersistentFlags().StringVarP(&gitRevision, "revision", "b", "master",
 		"branch-name, tag-name, or commit-hash of deployed from Git remote-repo")
 	deployCmd.PersistentFlags().StringVarP(&slackToken, "slack-token", "t", "",
 		"slack token of workspace where deployment notification will be sent")
