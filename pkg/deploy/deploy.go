@@ -34,6 +34,7 @@ func (d Deployer) Deploy(ctx context.Context, targets []config.DeployTarget) err
 			if info != nil && !reflect.ValueOf(info).IsNil() && !info.IsDir() {
 				dst := filepath.Join(target.Target, strings.TrimPrefix(path, src))
 				if _, _, err := d.shell.Execf(ctx, "", "test ! -d %s", filepath.Dir(dst)); err != nil {
+					d.log.Debug(fmt.Sprintf("%s does not exist, mkdir", filepath.Dir(dst)), zap.String("host", d.shell.Host()))
 					if _, _, err := d.shell.Execf(ctx, "", "mkdir -p %s", filepath.Dir(dst)); err != nil {
 						return err
 					}
