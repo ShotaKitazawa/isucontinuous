@@ -1,9 +1,9 @@
 package config
 
 type Config struct {
-	Setup Setup  `json:"setup,omitempty"`
-	Slack Slack  `json:"slack,omitempty"`
-	Hosts []Host `json:"targets,omitempty"`
+	Setup Setup  `yaml:"setup,omitempty"`
+	Slack Slack  `yaml:"slack,omitempty"`
+	Hosts []Host `yaml:"hosts,omitempty"`
 }
 
 func (c Config) IsDockerEnabled() bool {
@@ -44,37 +44,36 @@ func (c Config) ListTargetHosts() []Host {
 }
 
 type Setup struct {
-	Docker *Docker `json:"docker,omitempty"`
-	Alp    *Alp    `json:"alp,omitempty"`
+	Docker *Docker `yaml:"docker,omitempty"`
+	Alp    *Alp    `yaml:"alp,omitempty"`
 }
 
 type Docker struct {
-	Netdata *Netdata `json:"netdata,omitempty"`
+	Netdata *Netdata `yaml:"netdata,omitempty"`
 }
 
 type Netdata struct {
-	Version    string `json:"version,omitempty"`
-	PublicPort int    `json:"public_port,omitempty"`
+	Version    string `yaml:"version,omitempty"`
+	PublicPort int    `yaml:"public_port,omitempty"`
 }
 
 type Alp struct {
-	Version string `json:"version,omitempty"`
+	Version string `yaml:"version,omitempty"`
 }
 
 type Slack struct {
-	DefaultChannel string `json:"default_channel,omitempty"`
-	Token          string `json:"token,omitempty"`
+	DefaultChannelId string `yaml:"default_channel_id,omitempty"`
 }
 
 type Host struct {
-	Host       string     `json:"host,omitempty"`
-	Port       int        `json:"int,omitempty"`
-	User       string     `json:"user,omitempty"`
-	Key        string     `json:"key,omitempty"`
-	Password   string     `json:"password,omitempty"`
-	Deploy     Deploy     `json:"deploy,omitempty"`
-	Profiling  Profiling  `json:"profiling,omitempty"`
-	AfterBench AfterBench `json:"after_bench,omitempty"`
+	Host       string     `yaml:"host,omitempty"`
+	Port       int        `yaml:"int,omitempty"`
+	User       string     `yaml:"user,omitempty"`
+	Key        string     `yaml:"key,omitempty"`
+	Password   string     `yaml:"password,omitempty"`
+	Deploy     Deploy     `yaml:"deploy,omitempty"`
+	Profiling  Profiling  `yaml:"profiling,omitempty"`
+	AfterBench AfterBench `yaml:"after_bench,omitempty"`
 }
 
 func (c Host) IsLocal() bool {
@@ -86,24 +85,24 @@ func (c Host) ListTarget() []DeployTarget {
 }
 
 type Deploy struct {
-	SlackChannel string         `json:"slack_channel,omitempty"`
-	PreCommand   string         `json:"pre_command,omitempty"`
-	PostCommand  string         `json:"post_command,omitempty"`
-	Targets      []DeployTarget `json:"targets,omitempty"`
+	SlackChannel string         `yaml:"slack_channel,omitempty"`
+	PreCommand   string         `yaml:"pre_command,omitempty"`
+	PostCommand  string         `yaml:"post_command,omitempty"`
+	Targets      []DeployTarget `yaml:"targets,omitempty"`
 }
 
 type DeployTarget struct {
-	Src     string `json:"src,omitempty"`
-	Target  string `json:"target,omitempty"`
-	Compile string `json:"compile,omitempty"`
+	Src     string `yaml:"src,omitempty"`
+	Target  string `yaml:"target,omitempty"`
+	Compile string `yaml:"compile,omitempty"`
 }
 
 type Profiling struct {
-	Command string `json:"command,omitempty"`
+	Command string `yaml:"command,omitempty"`
 }
 
 type AfterBench struct {
-	SlackChannel string `json:"slack_channel,omitempty"`
-	Target       string `json:"target,omitempty"`
-	Command      string `json:"command,omitempty"`
+	SlackChannelId string `yaml:"slack_channel_id,omitempty"`
+	Target       string `yaml:"target,omitempty"`
+	Command      string `yaml:"command,omitempty"`
 }

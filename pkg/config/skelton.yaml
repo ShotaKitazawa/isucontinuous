@@ -6,17 +6,17 @@ setup:
   alp:
     version: v1.0.8
 slack:
-  default_channel: ""
+  default_channel_id: ""
 hosts:
 - host: localhost
   user: root
   key: /root/.ssh/id_rsa
   deploy:
-    slack_channel: ""
+    slack_channel_id: ""
     pre_command: >
-      rm -f "${env.ACCESSLOG_PATH}";
-      rm -f "${env.SLOWLOG_PATH}";
-    post_pommand: >
+      rm -f "{{.Env.ACCESSLOG_PATH}}";
+      rm -f "{{.Env.SLOWLOG_PATH}}";
+    post_command: >
       sudo systemctl restart isucondition.go.service
     targets:
     - src: nginx
@@ -27,14 +27,14 @@ hosts:
       target: /home/isucon/webapp/go
       compile: make
   profiling:
-    command: go tool pprof --output {{.env.HOME}}/pprof/profile-{{.Git.CommitHash}}.pb.gz http://localhost:3000/debug/pprof/profile?seconds=90
+    command: go tool pprof --output {{.Env.HOME}}/pprof/profile-{{.Git.CommitHash}}.pb.gz http://localhost:3000/debug/pprof/profile?seconds=90
   after_bench:
-    slack_channel: ""
+    slack_channel_id: ""
     target: /profile/{{.Git.CommitHash}}/
     command: >
       mkdir -p /profile/{{.Git.CommitHash}};
       if [ -f {{.env.HOME}}/pprof/profile-{{.Git.CommitHash}}.pb.gz ]; then
         go tool pprof -top {{.env.HOME}}/pprof/profile-{{.Git.CommitHash}}.pb.gz > /profile/{{.Git.CommitHash}}/pprof_top;
       fi;
-      cat "{{.env.ACCESSLOG_PATH}}" | alp ltsv -r --sort sum > /profile/{{.Git.CommitHash}}/accesslog;
-      cat "{{.env.SLOWLOG_PATH}}" | docker run -i --rm matsuu/pt-query-digest > /profile/{{.Git.CommitHash}}/slowlog;
+      cat "{{.Env.ACCESSLOG_PATH}}" | alp ltsv -r --sort sum > /profile/{{.Git.CommitHash}}/accesslog;
+      cat "{{.Env.SLOWLOG_PATH}}" | docker run -i --rm matsuu/pt-query-digest > /profile/{{.Git.CommitHash}}/slowlog;

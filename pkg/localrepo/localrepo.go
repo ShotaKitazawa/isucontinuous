@@ -2,7 +2,6 @@ package localrepo
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -28,16 +27,16 @@ func InitLocalRepo(logger *zap.Logger, e exec.Interface, path, username, email, 
 	l := &LocalRepo{*logger, shell.NewLocalClient(e), absPath}
 	ctx := context.Background()
 
-	if _, stderr, err := l.shell.RunCommand(ctx, l.absPath, "git init"); err != nil {
+	if _, stderr, err := l.shell.Exec(ctx, l.absPath, "git init"); err != nil {
 		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	if _, stderr, err := l.shell.RunCommand(ctx, l.absPath, fmt.Sprintf(`git config user.name "%s"`, username)); err != nil {
+	if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git config user.name "%s"`, username); err != nil {
 		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	if _, stderr, err := l.shell.RunCommand(ctx, l.absPath, fmt.Sprintf(`git config user.email "%s"`, email)); err != nil {
+	if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git config user.email "%s"`, email); err != nil {
 		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	if _, stderr, err := l.shell.RunCommand(ctx, l.absPath, fmt.Sprintf(`git remote add origin "%s"`, remoteUrl)); err != nil {
+	if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git remote add origin "%s"`, remoteUrl); err != nil {
 		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 
@@ -65,4 +64,18 @@ func (l *LocalRepo) CreateFile(name string, data []byte, perm os.FileMode) error
 		}
 	}
 	return os.WriteFile(filepath.Join(l.absPath, name), data, perm)
+}
+
+func (l *LocalRepo) Fetch(ctx context.Context) error {
+	if _, stderr, err := l.shell.Exec(ctx, l.absPath, "git fetch"); err != nil {
+		return myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	return nil
+}
+
+func (l *LocalRepo) SwitchDetachedBranch(ctx context.Context, revision string) error {
+	if _, stderr, err := l.shell.Execf(ctx, l.absPath, "git checkout -d remotes/origin/%s || git checkout -d %s", revision, revision); err != nil {
+		return myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	return nil
 }

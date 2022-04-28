@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
 
 type SshClient struct {
-	ssh.ClientConfig
+	*ssh.Client
 	host   string
 	target string
 }
@@ -54,22 +56,18 @@ func NewSshClient(host string, port int, user, password, keyfile string) (*SshCl
 	if port == 0 {
 		target = fmt.Sprintf("%s:22", host)
 	}
-	if _, err := ssh.Dial("tcp", target, &config); err != nil {
+	conn, err := ssh.Dial("tcp", target, &config)
+	if err != nil {
 		return nil, fmt.Errorf("unable to connect: %v", err)
 	}
-	return &SshClient{config, host, target}, nil
+	return &SshClient{conn, host, target}, nil
 }
 
-func (c *SshClient) RunCommand(ctx context.Context, basedir string, command string) (bytes.Buffer, bytes.Buffer, error) {
+func (c *SshClient) Exec(ctx context.Context, basedir string, command string) (bytes.Buffer, bytes.Buffer, error) {
 	stdout := bytes.Buffer{}
 	stderr := bytes.Buffer{}
 
-	client, err := ssh.Dial("tcp", c.target, &c.ClientConfig)
-	if err != nil {
-		return stdout, stderr, fmt.Errorf("unable to connect: %v", err)
-	}
-	defer client.Close()
-	session, err := client.NewSession()
+	session, err := c.NewSession()
 	if err != nil {
 		return stdout, stderr, fmt.Errorf("Failed to create session: %v", err)
 	}
@@ -85,4 +83,30 @@ func (c *SshClient) RunCommand(ctx context.Context, basedir string, command stri
 	}
 
 	return stdout, stderr, nil
+}
+
+func (c *SshClient) Execf(ctx context.Context, basedir string, cmd string, a ...interface{}) (bytes.Buffer, bytes.Buffer, error) {
+	return c.Exec(ctx, basedir, fmt.Sprintf(cmd, a...))
+}
+
+func (c *SshClient) Deploy(ctx context.Context, src, dst string) error {
+	s, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+
+	client, err := sftp.NewClient(c.Client)
+	if err != nil {
+		return fmt.Errorf("Failed to create session: %v", err)
+	}
+	d, err := client.Create(dst)
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(d, s); err != nil {
+		return err
+	}
+	return nil
+
 }
