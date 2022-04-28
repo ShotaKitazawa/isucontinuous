@@ -2,6 +2,7 @@ package slack
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/slack-go/slack"
 	"go.uber.org/zap"
@@ -32,7 +33,11 @@ func (c Client) SendText(ctx context.Context, channel, text string) error {
 	if channel == "" {
 		channel = c.defaultChannelId
 	}
-	if _, _, err := c.client.PostMessageContext(ctx, channelId, slack.MsgOptionText(text, false)); err != nil {
+	r, t, err := c.client.PostMessageContext(ctx, channelId, slack.MsgOptionText(text, false))
+	fmt.Println(channelId)
+	fmt.Println(r)
+	fmt.Println(t)
+	if err != nil {
 		return err
 	}
 	return nil
