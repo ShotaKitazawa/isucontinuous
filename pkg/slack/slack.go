@@ -7,23 +7,30 @@ import (
 	"go.uber.org/zap"
 )
 
+type ClientIface interface {
+	SendText(ctx context.Context, channel, text string) error
+}
+
 type Client struct {
 	log              *zap.Logger
 	client           *slack.Client
 	defaultChannelId string
 }
 
-func NewClient(logger *zap.Logger, token, channel string) *Client {
+func NewClient(logger *zap.Logger, token, channel string) ClientIface {
 	api := slack.New(token)
-	// TODO: verify token
-	// TODO: get channel id
+	if _, err := api.AuthTest(); err != nil {
+		// set fake client
+		logger.Info("Slack client is not authorized. set fake client (nothing to notify)")
+		return &FakeClient{logger}
+	}
 	return &Client{logger, api, channel}
 }
 
 func (c Client) SendText(ctx context.Context, channel, text string) error {
 	channelId := c.defaultChannelId
-	if channel != "" {
-		// TODO: get channel id
+	if channel == "" {
+		channel = c.defaultChannelId
 	}
 	if _, _, err := c.client.PostMessageContext(ctx, channelId, slack.MsgOptionText(text, false)); err != nil {
 		return err

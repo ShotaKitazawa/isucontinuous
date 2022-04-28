@@ -47,14 +47,14 @@ func RunDeploy(conf ConfigDeploy) error {
 		}
 		deployers[host.Host] = deploy.New(logger, s, templator, conf.LocalRepoPath)
 	}
-	slackClient := slack.NewClient(logger, conf.SlackToken, isucontinuous.Slack.DefaultChannel)
+	slackClient := slack.NewClient(logger, conf.SlackToken, isucontinuous.Slack.DefaultChannelId)
 	return runDeploy(conf, ctx, logger, isucontinuous, deployers, slackClient)
 }
 
 func runDeploy(
 	conf ConfigDeploy, ctx context.Context, logger *zap.Logger,
 	isucontinuous *config.Config, deployers map[string]*deploy.Deployer,
-	slackClient *slack.Client,
+	slackClient slack.ClientIface,
 ) error {
 	// Attach local-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)

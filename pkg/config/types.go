@@ -62,7 +62,7 @@ type Alp struct {
 }
 
 type Slack struct {
-	DefaultChannel string `yaml:"default_channel,omitempty"`
+	DefaultChannelId string `yaml:"default_channel_id,omitempty"`
 }
 
 type Host struct {
@@ -102,7 +102,7 @@ type Profiling struct {
 }
 
 type AfterBench struct {
-	SlackChannel string `yaml:"slack_channel,omitempty"`
+	SlackChannelId string `yaml:"slack_channel_id,omitempty"`
 	Target       string `yaml:"target,omitempty"`
 	Command      string `yaml:"command,omitempty"`
 }
