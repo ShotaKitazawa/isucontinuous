@@ -74,14 +74,14 @@ func runDeploy(
 		var err error
 		// Notify to Slack
 		slackClient.SendText(ctx, host.Deploy.SlackChannel,
-			fmt.Sprintf("**<%s> %s deploying...**", conf.GitRevision, host.Host))
+			fmt.Sprintf("*<%s> %s deploying...*", conf.GitRevision, host.Host))
 		defer func() {
 			if err != nil {
 				slackClient.SendText(ctx, host.Deploy.SlackChannel,
-					fmt.Sprintf("**<%s> %s deploy failed** :sob:", conf.GitRevision, host.Host))
+					fmt.Sprintf("*<%s> %s deploy failed* :sob:", conf.GitRevision, host.Host))
 			} else {
 				slackClient.SendText(ctx, host.Deploy.SlackChannel,
-					fmt.Sprintf("**<%s> %s deploy succeeded** :laughing:", conf.GitRevision, host.Host))
+					fmt.Sprintf("*<%s> %s deploy succeeded* :laughing:", conf.GitRevision, host.Host))
 			}
 		}()
 		// Execute preCommand
