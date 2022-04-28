@@ -33,6 +33,11 @@ func (d Deployer) Deploy(ctx context.Context, targets []config.DeployTarget) err
 		if err := filepath.WalkDir(src, func(path string, info fs.DirEntry, err error) error {
 			if info != nil && !reflect.ValueOf(info).IsNil() && !info.IsDir() {
 				dst := filepath.Join(target.Target, strings.TrimPrefix(path, src))
+				if _, _, err := d.shell.Execf(ctx, "", "test ! -d %s", filepath.Dir(dst)); err != nil {
+					if _, _, err := d.shell.Execf(ctx, "", "mkdir -p %s", filepath.Dir(dst)); err != nil {
+						return err
+					}
+				}
 				d.log.Debug(fmt.Sprintf("deploy %s to %s", path, dst), zap.String("host", d.shell.Host()))
 				return d.shell.Deploy(ctx, path, dst)
 			}
