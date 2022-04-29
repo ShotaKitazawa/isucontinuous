@@ -31,10 +31,8 @@ func (c *LocalClient) Exec(ctx context.Context, basedir string, cmd string) (byt
 	}
 	cc.SetStdout(&stdout)
 	cc.SetStderr(&stderr)
-	if err := cc.Run(); err != nil {
-		return stdout, stderr, err
-	}
-	return stdout, stderr, nil
+	err := cc.Run()
+	return stdout, stderr, err
 }
 
 func (c *LocalClient) Execf(ctx context.Context, basedir string, cmd string, a ...interface{}) (bytes.Buffer, bytes.Buffer, error) {
