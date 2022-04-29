@@ -27,8 +27,13 @@ func RunDeploy(conf ConfigDeploy) error {
 	if err != nil {
 		return err
 	}
+	// Attach local-repo
+	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
+	if err != nil {
+		return err
+	}
 	// load isucontinuous.yaml
-	isucontinuous, err := config.Load(conf.LocalRepoPath, isucontinuousFilename)
+	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
 	if err != nil {
 		return err
 	}
@@ -48,16 +53,16 @@ func RunDeploy(conf ConfigDeploy) error {
 		deployers[host.Host] = deploy.New(logger, s, templator, conf.LocalRepoPath)
 	}
 	slackClient := slack.NewClient(logger, conf.SlackToken, isucontinuous.Slack.DefaultChannelId)
-	return runDeploy(conf, ctx, logger, isucontinuous, deployers, slackClient)
+	return runDeploy(conf, ctx, logger, repo, deployers, slackClient)
 }
 
 func runDeploy(
 	conf ConfigDeploy, ctx context.Context, logger *zap.Logger,
-	isucontinuous *config.Config, deployers map[string]*deploy.Deployer,
+	repo localrepo.LocalRepoIface, deployers map[string]*deploy.Deployer,
 	slackClient slack.ClientIface,
 ) error {
-	// Attach local-repo
-	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
+	// Load isucontinus.yaml
+	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
 	if err != nil {
 		return err
 	}
@@ -73,14 +78,16 @@ func runDeploy(
 		deployer := deployers[host.Host]
 		var err error
 		// Notify to Slack
-		slackClient.SendText(ctx, host.Deploy.SlackChannel,
-			fmt.Sprintf("*<%s> %s deploying...*", conf.GitRevision, host.Host))
+		if err := slackClient.SendText(ctx, host.Deploy.SlackChannel,
+			fmt.Sprintf("*<%s> %s deploying...*", conf.GitRevision, host.Host)); err != nil {
+			return err
+		}
 		defer func() {
 			if err != nil {
-				slackClient.SendText(ctx, host.Deploy.SlackChannel,
+				_ = slackClient.SendText(ctx, host.Deploy.SlackChannel,
 					fmt.Sprintf("*<%s> %s deploy failed* :sob:", conf.GitRevision, host.Host))
 			} else {
-				slackClient.SendText(ctx, host.Deploy.SlackChannel,
+				_ = slackClient.SendText(ctx, host.Deploy.SlackChannel,
 					fmt.Sprintf("*<%s> %s deploy succeeded* :laughing:", conf.GitRevision, host.Host))
 			}
 		}()

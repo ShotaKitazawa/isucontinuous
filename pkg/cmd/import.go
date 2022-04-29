@@ -25,8 +25,13 @@ func RunImport(conf ConfigImport) error {
 	if err != nil {
 		return err
 	}
+	// Attach local isucon-repo
+	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
+	if err != nil {
+		return err
+	}
 	// load isucontinuous.yaml
-	isucontinuous, err := config.Load(conf.LocalRepoPath, isucontinuousFilename)
+	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
 	if err != nil {
 		return err
 	}
@@ -44,15 +49,15 @@ func RunImport(conf ConfigImport) error {
 		}
 		importers[host.Host] = imports.New(logger, s)
 	}
-	return runImport(conf, ctx, logger, isucontinuous, importers)
+	return runImport(conf, ctx, logger, repo, importers)
 }
 
 func runImport(
 	conf ConfigImport, ctx context.Context, logger *zap.Logger,
-	isucontinuous *config.Config, importers map[string]*imports.Importer,
+	repo localrepo.LocalRepoIface, importers map[string]*imports.Importer,
 ) error {
-	// Attach local isucon-repo
-	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
+	// load isucontinuous.yaml
+	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
 	if err != nil {
 		return err
 	}

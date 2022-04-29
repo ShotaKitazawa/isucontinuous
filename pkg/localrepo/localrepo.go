@@ -6,11 +6,20 @@ import (
 	"path/filepath"
 
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 	"k8s.io/utils/exec"
 
+	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
 	myerrors "github.com/ShotaKitazawa/isu-continuous/pkg/errors"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/shell"
 )
+
+type LocalRepoIface interface {
+	LoadConf(filename string) (*config.Config, error)
+	CreateFile(name string, data []byte, perm os.FileMode) error
+	Fetch(ctx context.Context) error
+	SwitchDetachedBranch(ctx context.Context, revision string) error
+}
 
 type LocalRepo struct {
 	log   zap.Logger
@@ -54,6 +63,19 @@ func AttachLocalRepo(logger *zap.Logger, e exec.Interface, path string) (*LocalR
 		return nil, myerrors.NewErrorIsNotDirectory(absPath)
 	}
 	return &LocalRepo{*logger, shell.NewLocalClient(e), absPath}, nil
+}
+
+func (l *LocalRepo) LoadConf(filename string) (*config.Config, error) {
+	f, err := os.ReadFile(filepath.Join(l.absPath, filename))
+	if err != nil {
+		return nil, err
+	}
+	conf := &config.Config{}
+	if err := yaml.Unmarshal(f, conf); err != nil {
+		return nil, err
+	}
+	return conf, nil
+
 }
 
 func (l *LocalRepo) CreateFile(name string, data []byte, perm os.FileMode) error {
