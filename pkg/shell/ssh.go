@@ -51,6 +51,7 @@ func NewSshClient(host string, port int, user, password, keyfile string) (*SshCl
 	default:
 		return nil, fmt.Errorf("neither password nor publicKey was specified")
 	}
+	config.SetDefaults()
 	// Connect to the remote server and perform the SSH handshake.
 	target := fmt.Sprintf("%s:%d", host, port)
 	if port == 0 {
@@ -99,6 +100,8 @@ func (c *SshClient) Deploy(ctx context.Context, src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to create session: %v", err)
 	}
+	defer client.Close()
+
 	d, err := client.Create(dst)
 	if err != nil {
 		return err
