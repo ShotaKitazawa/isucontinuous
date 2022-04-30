@@ -18,10 +18,12 @@ type LocalRepoIface interface {
 	LoadConf(filename string) (*config.Config, error)
 	CreateFile(name string, data []byte, perm os.FileMode) error
 	Fetch(ctx context.Context) error
+	SwitchAndMerge(ctx context.Context, branch string) error
+	SwitchDetachedBranch(ctx context.Context, revision string) error
+	Push(ctx context.Context) error
 	CurrentBranch(ctx context.Context) (string, error)
 	DiffWithRemote(ctx context.Context) (bool, error)
-	Push(ctx context.Context) error
-	SwitchDetachedBranch(ctx context.Context, revision string) error
+	Reset(ctx context.Context) error
 }
 
 type LocalRepo struct {
@@ -98,21 +100,33 @@ func (l *LocalRepo) Fetch(ctx context.Context) error {
 	return nil
 }
 
-func (l *LocalRepo) CurrentBranch(ctx context.Context) (string, error) {
-	stdout, stderr, err := l.shell.Execf(ctx, l.absPath, "git branch --show-current")
-	if err != nil {
-		return "", myerrors.NewErrorCommandExecutionFailed(stderr)
+func (l *LocalRepo) SwitchAndMerge(ctx context.Context, branch string) error {
+	// check to exist
+	if stdout, _, err := l.shell.Exec(ctx, l.absPath, `git branch --format="%(refname:short)" | grep -e ^`+branch+`$`); err != nil {
+		// checkout only
+		if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git checkout %s`, branch); err != nil {
+			return myerrors.NewErrorCommandExecutionFailed(stderr)
+		}
+	} else {
+		if stdout.String() != branch {
+			// checkout & merge
+			if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git checkout %s`, branch); err != nil {
+				return myerrors.NewErrorCommandExecutionFailed(stderr)
+			}
+			if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git merge origin/%s`, branch); err != nil {
+				return myerrors.NewErrorCommandExecutionFailed(stderr)
+			}
+			return nil
+		}
 	}
-	return stdout.String(), nil
+	return nil
 }
 
-func (l *LocalRepo) DiffWithRemote(ctx context.Context) (bool, error) {
-	if stdout, stderr, err := l.shell.Exec(ctx, l.absPath, ""); err != nil {
-		return false, myerrors.NewErrorCommandExecutionFailed(stderr)
-	} else if stdout.String() != "" {
-		return false, nil
+func (l *LocalRepo) SwitchDetachedBranch(ctx context.Context, revision string) error {
+	if _, stderr, err := l.shell.Execf(ctx, l.absPath, "git checkout -d remotes/origin/%s || git checkout -d %s", revision, revision); err != nil {
+		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	return true, nil
+	return nil
 }
 
 func (l *LocalRepo) Push(ctx context.Context) error {
@@ -125,8 +139,25 @@ func (l *LocalRepo) Push(ctx context.Context) error {
 	return nil
 }
 
-func (l *LocalRepo) SwitchDetachedBranch(ctx context.Context, revision string) error {
-	if _, stderr, err := l.shell.Execf(ctx, l.absPath, "git checkout -d remotes/origin/%s || git checkout -d %s", revision, revision); err != nil {
+func (l *LocalRepo) CurrentBranch(ctx context.Context) (string, error) {
+	stdout, stderr, err := l.shell.Execf(ctx, l.absPath, "git branch --show-current")
+	if err != nil {
+		return "", myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	return stdout.String(), nil
+}
+
+func (l *LocalRepo) DiffWithRemote(ctx context.Context) (bool, error) {
+	if stdout, stderr, err := l.shell.Exec(ctx, l.absPath, "git diff origin/HEAD"); err != nil {
+		return false, myerrors.NewErrorCommandExecutionFailed(stderr)
+	} else if stdout.String() != "" {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (l *LocalRepo) Reset(ctx context.Context) error {
+	if _, stderr, err := l.shell.Exec(ctx, l.absPath, "git reset --hard"); err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	return nil
