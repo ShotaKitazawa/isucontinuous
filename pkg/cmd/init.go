@@ -29,6 +29,8 @@ func RunInit(conf ConfigInit) error {
 }
 
 func runInit(conf ConfigInit, ctx context.Context, logger *zap.Logger) error {
+	logger.Info("start init")
+	defer func() { logger.Info("finish init") }()
 	// Create local-repo directory if does not existed
 	if _, err := os.Stat(conf.LocalRepoPath); err == nil {
 		return myerrors.NewErrorFileAlreadyExisted(conf.LocalRepoPath)

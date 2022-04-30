@@ -36,6 +36,16 @@ func runImport(
 	conf ConfigImport, ctx context.Context, logger *zap.Logger,
 	repo localrepo.LocalRepoIface, newImporters imports.NewImportersFunc,
 ) error {
+	logger.Info("start import")
+	defer func() { logger.Info("finish import") }()
+	// Check currentBranch
+	currentBranch, err := repo.CurrentBranch(ctx)
+	if err != nil {
+		return err
+	} else if currentBranch == "" {
+		return fmt.Errorf(
+			"current branch name is <detached>. Please exec `sync` command first to checkout.")
+	}
 	// load isucontinuous.yaml
 	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
 	if err != nil {

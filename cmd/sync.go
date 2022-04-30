@@ -5,31 +5,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// pushCmd represents the push command
-var pushCmd = &cobra.Command{
-	Use:   "push",
-	Short: "Push local-repo to origin/${MAIN_BRANCH}",
+// syncCmd represents the sync command
+var syncCmd = &cobra.Command{
+	Use:   "sync",
+	Short: "",
 	RunE: func(c *cobra.Command, args []string) error {
 		executed = true
-		conf := cmd.ConfigPush{
+		conf := cmd.ConfigSync{
 			ConfigCommon: cmd.ConfigCommon{
 				LogLevel:      logLevel,
 				LogFilename:   logfile,
 				LocalRepoPath: localRepo,
 			},
-			GitBranch: pushGitBranch,
+			GitBranch: syncGitBranch,
 		}
-		return cmd.RunPush(conf)
+		return cmd.RunSync(conf)
 	},
 }
 
 var (
-	pushGitBranch string
+	syncGitBranch string
 )
 
 func init() {
-	rootCmd.AddCommand(pushCmd)
-	pushCmd.PersistentFlags().StringVarP(&pushGitBranch, "branch", "b", "master",
+	rootCmd.AddCommand(syncCmd)
+	pushCmd.PersistentFlags().StringVarP(&syncGitBranch, "branch", "b", "master",
 		"branch-name to push to Git remote-repo")
-
 }

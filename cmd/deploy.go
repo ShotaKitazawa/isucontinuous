@@ -17,23 +17,23 @@ var deployCmd = &cobra.Command{
 				LogFilename:   logfile,
 				LocalRepoPath: localRepo,
 			},
-			GitRevision: gitRevision,
-			SlackToken:  slackToken,
+			GitRevision: deployGitRevision,
+			SlackToken:  deploySlackToken,
 		}
 		return cmd.RunDeploy(conf)
 	},
 }
 
 var (
-	gitRevision string
-	slackToken  string
+	deployGitRevision string
+	deploySlackToken  string
 )
 
 func init() {
 	rootCmd.AddCommand(deployCmd)
-	deployCmd.PersistentFlags().StringVarP(&gitRevision, "revision", "b", "master",
+	deployCmd.PersistentFlags().StringVarP(&deployGitRevision, "revision", "b", "master",
 		"branch-name, tag-name, or commit-hash of deployed from Git remote-repo")
-	deployCmd.PersistentFlags().StringVarP(&slackToken, "slack-token", "t", "",
+	deployCmd.PersistentFlags().StringVarP(&deploySlackToken, "slack-token", "t", "",
 		"slack token of workspace where deployment notification will be sent")
 	_ = initCmd.MarkPersistentFlagRequired("slack-token")
 }

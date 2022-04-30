@@ -32,12 +32,18 @@ func runPush(
 	conf ConfigPush, ctx context.Context, logger *zap.Logger,
 	repo localrepo.LocalRepoIface,
 ) error {
+	logger.Info("start push")
+	defer func() { logger.Info("finish push") }()
+	// Check currentBranch
 	currentBranch, err := repo.CurrentBranch(ctx)
 	if err != nil {
 		return err
 	} else if currentBranch != conf.GitBranch {
+		if currentBranch == "" {
+			currentBranch = "<detached>"
+		}
 		return fmt.Errorf(
-			"current branch name is %s, exec `isu-continuous sync` command to checkout to %s.",
+			"current branch name is %s. Please exec `sync` command first to checkout to %s.",
 			currentBranch, conf.GitBranch,
 		)
 	}
@@ -49,7 +55,7 @@ func runPush(
 	if ok, err := repo.DiffWithRemote(ctx); err != nil {
 		return err
 	} else if !ok {
-		return fmt.Errorf("there are deferences between %s and remotes/origin/%s", conf.GitBranch, conf.GitBranch)
+		return fmt.Errorf("there are differences between %s and remotes/origin/%s", conf.GitBranch, conf.GitBranch)
 	}
 	// Execute add, commit, and push
 	if err := repo.Push(ctx); err != nil {
