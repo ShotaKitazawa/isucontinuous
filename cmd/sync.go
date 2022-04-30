@@ -29,6 +29,6 @@ var (
 
 func init() {
 	rootCmd.AddCommand(syncCmd)
-	pushCmd.PersistentFlags().StringVarP(&syncGitBranch, "branch", "b", "master",
+	syncCmd.PersistentFlags().StringVarP(&syncGitBranch, "branch", "b", "master",
 		"branch-name to push to Git remote-repo")
 }
