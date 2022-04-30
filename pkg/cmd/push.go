@@ -55,7 +55,7 @@ func runPush(
 	if ok, err := repo.DiffWithRemote(ctx); err != nil {
 		return err
 	} else if !ok {
-		return fmt.Errorf("there are deferences between %s and remotes/origin/%s", conf.GitBranch, conf.GitBranch)
+		return fmt.Errorf("there are differences between %s and remotes/origin/%s", conf.GitBranch, conf.GitBranch)
 	}
 	// Execute add, commit, and push
 	if err := repo.Push(ctx); err != nil {
