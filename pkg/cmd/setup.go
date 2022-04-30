@@ -7,9 +7,9 @@ import (
 	"k8s.io/utils/exec"
 
 	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/install"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/localrepo"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/shell"
+	"github.com/ShotaKitazawa/isu-continuous/pkg/usecases/install"
 )
 
 type ConfigSetup struct {

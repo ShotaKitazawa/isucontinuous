@@ -32,7 +32,7 @@ func (c *LocalClient) Exec(ctx context.Context, basedir string, cmd string) (byt
 	cc.SetStdout(&stdout)
 	cc.SetStderr(&stderr)
 	err := cc.Run()
-	return stdout, stderr, err
+	return trimNewLine(stdout), trimNewLine(stderr), err
 }
 
 func (c *LocalClient) Execf(ctx context.Context, basedir string, cmd string, a ...interface{}) (bytes.Buffer, bytes.Buffer, error) {
@@ -48,6 +48,7 @@ func (c *LocalClient) Deploy(ctx context.Context, src, dst string) error {
 	if err != nil {
 		return err
 	}
+	defer d.Close()
 	if _, err := io.Copy(d, s); err != nil {
 		return err
 	}

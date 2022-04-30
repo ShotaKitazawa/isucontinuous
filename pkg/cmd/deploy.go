@@ -8,10 +8,10 @@ import (
 	"k8s.io/utils/exec"
 
 	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/deploy"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/localrepo"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/slack"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/template"
+	"github.com/ShotaKitazawa/isu-continuous/pkg/usecases/deploy"
 )
 
 type ConfigDeploy struct {

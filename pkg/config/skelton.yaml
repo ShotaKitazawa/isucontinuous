@@ -13,10 +13,10 @@ hosts:
   key: /root/.ssh/id_rsa
   deploy:
     slack_channel_id: ""
-    pre_command: >
+    pre_command: >-
       rm -f "{{.Env.ACCESSLOG_PATH}}";
       rm -f "{{.Env.SLOWLOG_PATH}}";
-    post_command: >
+    post_command: >-
       sudo systemctl restart isucondition.go.service
     targets:
     - src: nginx
@@ -31,7 +31,7 @@ hosts:
   after_bench:
     slack_channel_id: ""
     target: /profile/{{.Git.CommitHash}}/
-    command: >
+    command: >-
       mkdir -p /profile/{{.Git.CommitHash}};
       if [ -f {{.env.HOME}}/pprof/profile-{{.Git.CommitHash}}.pb.gz ]; then
         go tool pprof -top {{.env.HOME}}/pprof/profile-{{.Git.CommitHash}}.pb.gz > /profile/{{.Git.CommitHash}}/pprof_top;

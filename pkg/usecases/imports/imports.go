@@ -51,7 +51,7 @@ func (l *Importer) GetFileContent(ctx context.Context, path string) ([]byte, os.
 	if err != nil {
 		return nil, 0, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	mode, err := strconv.Atoi(strings.TrimRight(stdout.String(), "\n"))
+	mode, err := strconv.Atoi(stdout.String())
 	if err != nil {
 		return nil, 0, err
 	}
@@ -81,5 +81,5 @@ func (l *Importer) ListUntrackedFiles(ctx context.Context, path string) ([]strin
 	if err != nil {
 		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	return strings.Split(strings.TrimRight(stdout.String(), "\n"), "\n"), nil
+	return strings.Split(stdout.String(), "\n"), nil
 }
