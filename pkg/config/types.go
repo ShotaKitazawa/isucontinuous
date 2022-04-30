@@ -39,10 +39,6 @@ func (c Config) IsAlpEnabled() (flag bool, version string) {
 	return true, version
 }
 
-func (c Config) ListTargetHosts() []Host {
-	return c.Hosts
-}
-
 type Setup struct {
 	Docker *Docker `yaml:"docker,omitempty"`
 	Alp    *Alp    `yaml:"alp,omitempty"`
@@ -103,6 +99,6 @@ type Profiling struct {
 
 type AfterBench struct {
 	SlackChannelId string `yaml:"slack_channel_id,omitempty"`
-	Target       string `yaml:"target,omitempty"`
-	Command      string `yaml:"command,omitempty"`
+	Target         string `yaml:"target,omitempty"`
+	Command        string `yaml:"command,omitempty"`
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
 	myerrors "github.com/ShotaKitazawa/isu-continuous/pkg/errors"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/localrepo"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/shell"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/usecases/imports"
 )
 
@@ -30,44 +29,25 @@ func RunImport(conf ConfigImport) error {
 	if err != nil {
 		return err
 	}
-	// load isucontinuous.yaml
-	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
-	if err != nil {
-		return err
-	}
-	// set importers
-	importers := make(map[string]*imports.Importer)
-	for _, host := range isucontinuous.Hosts {
-		var s shell.Iface
-		if host.IsLocal() {
-			s = shell.NewLocalClient(exec.New())
-		} else {
-			s, err = shell.NewSshClient(host.Host, host.Port, host.User, host.Password, host.Key)
-			if err != nil {
-				return err
-			}
-		}
-		importers[host.Host] = imports.New(logger, s)
-	}
-	return runImport(conf, ctx, logger, repo, importers)
+	return runImport(conf, ctx, logger, repo, imports.NewImporters)
 }
 
 func runImport(
 	conf ConfigImport, ctx context.Context, logger *zap.Logger,
-	repo localrepo.LocalRepoIface, importers map[string]*imports.Importer,
+	repo localrepo.LocalRepoIface, newImporters imports.NewImportersFunc,
 ) error {
 	// load isucontinuous.yaml
 	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
 	if err != nil {
 		return err
 	}
-	// List TargetDirs
-	hosts := isucontinuous.ListTargetHosts()
+	// Set importers
+	importers, err := newImporters(logger, isucontinuous.Hosts)
 	if err != nil {
 		return err
 	}
 	// Import files from per host
-	return perHostExec(logger, ctx, hosts, func(ctx context.Context, host config.Host) error {
+	return perHostExec(logger, ctx, isucontinuous.Hosts, func(ctx context.Context, host config.Host) error {
 		importer := importers[host.Host]
 		for _, target := range host.ListTarget() {
 			switch importer.FileType(ctx, target.Target) {

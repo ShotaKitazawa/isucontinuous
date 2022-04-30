@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
+	"k8s.io/utils/exec"
 
+	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
 	myerrors "github.com/ShotaKitazawa/isu-continuous/pkg/errors"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/shell"
 )
@@ -18,7 +20,27 @@ type Importer struct {
 	shell shell.Iface
 }
 
-func New(logger *zap.Logger, s shell.Iface) *Importer {
+type NewImportersFunc func(logger *zap.Logger, hosts []config.Host) (map[string]*Importer, error)
+
+func NewImporters(logger *zap.Logger, hosts []config.Host) (map[string]*Importer, error) {
+	importers := make(map[string]*Importer)
+	var err error
+	for _, host := range hosts {
+		var s shell.Iface
+		if host.IsLocal() {
+			s = shell.NewLocalClient(exec.New())
+		} else {
+			s, err = shell.NewSshClient(host.Host, host.Port, host.User, host.Password, host.Key)
+			if err != nil {
+				return nil, err
+			}
+		}
+		importers[host.Host] = new(logger, s)
+	}
+	return importers, nil
+}
+
+func new(logger *zap.Logger, s shell.Iface) *Importer {
 	return &Importer{*logger, s}
 }
 

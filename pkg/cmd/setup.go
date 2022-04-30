@@ -8,7 +8,6 @@ import (
 
 	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/localrepo"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/shell"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/usecases/install"
 )
 
@@ -27,34 +26,21 @@ func RunSetup(conf ConfigSetup) error {
 	if err != nil {
 		return err
 	}
+	// set installers
+	return runSetup(conf, ctx, logger, repo, install.NewInstallers)
+}
+
+func runSetup(
+	conf ConfigSetup, ctx context.Context, logger *zap.Logger,
+	repo localrepo.LocalRepoIface, newInstallers install.NewInstallersFunc,
+) error {
 	// load isucontinuous.yaml
 	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
 	if err != nil {
 		return err
 	}
-	// set installers
-	installers := make(map[string]*install.Installer)
-	for _, host := range isucontinuous.Hosts {
-		var s shell.Iface
-		if host.IsLocal() {
-			s = shell.NewLocalClient(exec.New())
-		} else {
-			s, err = shell.NewSshClient(host.Host, host.Port, host.User, host.Password, host.Key)
-			if err != nil {
-				return err
-			}
-		}
-		installers[host.Host] = install.NewInstaller(logger, s)
-	}
-	return runSetup(conf, ctx, logger, repo, installers)
-}
-
-func runSetup(
-	conf ConfigSetup, ctx context.Context, logger *zap.Logger,
-	repo localrepo.LocalRepoIface, installers map[string]*install.Installer,
-) error {
-	// load isucontinuous.yaml
-	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
+	// Set installers
+	installers, err := newInstallers(logger, isucontinuous.Hosts)
 	if err != nil {
 		return err
 	}
