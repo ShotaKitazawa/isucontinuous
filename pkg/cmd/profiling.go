@@ -40,12 +40,12 @@ func runProfiling(
 	logger.Info("start profiling")
 	defer func() { logger.Info("finish profiling") }()
 	// Load isucontinus.yaml
-	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
+	isucontinuous, err := repo.LoadConf()
 	if err != nil {
 		return err
 	}
 	// Get revision
-	gitRevision, err := repo.GetRevision(ctx, revisionStoreFilename)
+	gitRevision, err := repo.GetRevision(ctx)
 	if err != nil {
 		return fmt.Errorf("%s/.revision is not found. exec `deploy` command first", conf.LocalRepoPath)
 	}

@@ -11,11 +11,6 @@ import (
 	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
 )
 
-const (
-	isucontinuousFilename = "isucontinuous.yaml"
-	revisionStoreFilename = ".revision"
-)
-
 type ConfigCommon struct {
 	LogLevel      string
 	LogFilename   string

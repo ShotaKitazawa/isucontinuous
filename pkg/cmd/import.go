@@ -47,7 +47,7 @@ func runImport(
 			"current branch name is <detached>. Please exec `sync` command first to checkout.")
 	}
 	// load isucontinuous.yaml
-	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
+	isucontinuous, err := repo.LoadConf()
 	if err != nil {
 		return err
 	}

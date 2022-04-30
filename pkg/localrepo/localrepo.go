@@ -14,8 +14,13 @@ import (
 	"github.com/ShotaKitazawa/isu-continuous/pkg/shell"
 )
 
+const (
+	isucontinuousFilename = "isucontinuous.yaml"
+	revisionStoreFilename = ".revision"
+)
+
 type LocalRepoIface interface {
-	LoadConf(filename string) (*config.Config, error)
+	LoadConf() (*config.Config, error)
 	CreateFile(name string, data []byte, perm os.FileMode) error
 	Fetch(ctx context.Context) error
 	SwitchAndMerge(ctx context.Context, branch string) error
@@ -24,8 +29,8 @@ type LocalRepoIface interface {
 	CurrentBranch(ctx context.Context) (string, error)
 	DiffWithRemote(ctx context.Context) (bool, error)
 	Reset(ctx context.Context) error
-	GetRevision(ctx context.Context, filename string) (string, error)
-	SetRevision(ctx context.Context, filename, revision string) error
+	GetRevision(ctx context.Context) (string, error)
+	SetRevision(ctx context.Context, revision string) error
 }
 
 type LocalRepo struct {
@@ -42,7 +47,7 @@ func InitLocalRepo(logger *zap.Logger, e exec.Interface, path, username, email, 
 	}
 	l := &LocalRepo{*logger, shell.NewLocalClient(e), absPath}
 	ctx := context.Background()
-
+	// Initialize local-repo
 	if _, stderr, err := l.shell.Exec(ctx, l.absPath, "git init"); err != nil {
 		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
@@ -55,7 +60,19 @@ func InitLocalRepo(logger *zap.Logger, e exec.Interface, path, username, email, 
 	if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git remote add origin "%s"`, remoteUrl); err != nil {
 		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-
+	// Generate from skelton
+	f, err := config.SkeltonBytes()
+	if err != nil {
+		return nil, err
+	}
+	// Create isucontinuous.yaml to local-repo.
+	if err := l.CreateFile(isucontinuousFilename, f, 0644); err != nil {
+		return nil, err
+	}
+	// Create .gitignore (.revision is written) to local-repo.
+	if err := l.CreateFile(".gitignore", []byte(revisionStoreFilename), 0644); err != nil {
+		return nil, err
+	}
 	return l, nil
 }
 
@@ -72,8 +89,8 @@ func AttachLocalRepo(logger *zap.Logger, e exec.Interface, path string) (*LocalR
 	return &LocalRepo{*logger, shell.NewLocalClient(e), absPath}, nil
 }
 
-func (l *LocalRepo) LoadConf(filename string) (*config.Config, error) {
-	f, err := os.ReadFile(filepath.Join(l.absPath, filename))
+func (l *LocalRepo) LoadConf() (*config.Config, error) {
+	f, err := os.ReadFile(filepath.Join(l.absPath, isucontinuousFilename))
 	if err != nil {
 		return nil, err
 	}
@@ -168,11 +185,11 @@ func (l *LocalRepo) Reset(ctx context.Context) error {
 	return nil
 }
 
-func (l *LocalRepo) GetRevision(ctx context.Context, filename string) (string, error) {
-	b, err := os.ReadFile(filepath.Join(l.absPath, filename))
+func (l *LocalRepo) GetRevision(ctx context.Context) (string, error) {
+	b, err := os.ReadFile(filepath.Join(l.absPath, revisionStoreFilename))
 	return string(b), err
 }
 
-func (l *LocalRepo) SetRevision(ctx context.Context, filename, revision string) error {
-	return os.WriteFile(filepath.Join(l.absPath, filename), []byte(revision), 0644)
+func (l *LocalRepo) SetRevision(ctx context.Context, revision string) error {
+	return os.WriteFile(filepath.Join(l.absPath, revisionStoreFilename), []byte(revision), 0644)
 }

@@ -7,7 +7,6 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 
-	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
 	myerrors "github.com/ShotaKitazawa/isu-continuous/pkg/errors"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/localrepo"
 )
@@ -39,21 +38,8 @@ func runInit(conf ConfigInit, ctx context.Context, logger *zap.Logger) error {
 		return err
 	}
 	// Initialize local-repo
-	repo, err := localrepo.InitLocalRepo(logger, exec.New(), conf.LocalRepoPath, conf.GitUsername, conf.GitEmail, conf.GitRemoteUrl)
+	_, err := localrepo.InitLocalRepo(logger, exec.New(), conf.LocalRepoPath, conf.GitUsername, conf.GitEmail, conf.GitRemoteUrl)
 	if err != nil {
-		return err
-	}
-	// Generate skelton
-	f, err := config.SkeltonBytes()
-	if err != nil {
-		return err
-	}
-	// Create isucontinuous.yaml to local-repo.
-	if err := repo.CreateFile(isucontinuousFilename, f, 0644); err != nil {
-		return err
-	}
-	// Create .gitignore (.revision is written) to local-repo.
-	if err := repo.CreateFile(".gitignore", []byte(revisionStoreFilename), 0644); err != nil {
 		return err
 	}
 	return nil

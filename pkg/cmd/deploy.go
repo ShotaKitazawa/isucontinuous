@@ -33,7 +33,7 @@ func RunDeploy(conf ConfigDeploy) error {
 		return err
 	}
 	// load isucontinuous.yaml
-	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
+	isucontinuous, err := repo.LoadConf()
 	if err != nil {
 		return err
 	}
@@ -56,13 +56,13 @@ func runDeploy(
 		return err
 	}
 	// Load isucontinus.yaml
-	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
+	isucontinuous, err := repo.LoadConf()
 	if err != nil {
 		return err
 	}
 	// Check to have already deployed
 	if !conf.Force {
-		if r, err := repo.GetRevision(ctx, revisionStoreFilename); err == nil {
+		if r, err := repo.GetRevision(ctx); err == nil {
 			if r != conf.GitRevision {
 				return fmt.Errorf(
 					`"deploy" command has already been executed. Please execute "afterbench" or "deploy --force".`)
@@ -109,5 +109,5 @@ func runDeploy(
 		return err
 	}
 	// Store revision to local-repo
-	return repo.SetRevision(ctx, revisionStoreFilename, conf.GitRevision)
+	return repo.SetRevision(ctx, conf.GitRevision)
 }

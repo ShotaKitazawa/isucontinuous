@@ -37,7 +37,7 @@ func runSetup(
 	logger.Info("start setup")
 	defer func() { logger.Info("finish setup") }()
 	// load isucontinuous.yaml
-	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
+	isucontinuous, err := repo.LoadConf()
 	if err != nil {
 		return err
 	}
