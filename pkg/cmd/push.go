@@ -32,6 +32,9 @@ func runPush(
 	conf ConfigPush, ctx context.Context, logger *zap.Logger,
 	repo localrepo.LocalRepoIface,
 ) error {
+	logger.Info("start push")
+	defer func() { logger.Info("finish push") }()
+	// Check currentBranch
 	currentBranch, err := repo.CurrentBranch(ctx)
 	if err != nil {
 		return err

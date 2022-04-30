@@ -32,6 +32,8 @@ func runSync(
 	conf ConfigSync, ctx context.Context, logger *zap.Logger,
 	repo localrepo.LocalRepoIface,
 ) error {
+	logger.Info("start sync")
+	defer func() { logger.Info("finish sync") }()
 	// if current branch is detached, exec `git reset --hard``
 	if currentBranch, err := repo.CurrentBranch(ctx); err != nil {
 		return err

@@ -45,6 +45,8 @@ func runDeploy(
 	repo localrepo.LocalRepoIface, slackClient slack.ClientIface,
 	newDeployersFunc deploy.NewDeployersFunc,
 ) error {
+	logger.Info("start deploy")
+	defer func() { logger.Info("finish deploy") }()
 	// Fetch remote-repo & switch to gitRevision
 	if err := repo.Fetch(ctx); err != nil {
 		return err

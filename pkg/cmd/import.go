@@ -36,6 +36,8 @@ func runImport(
 	conf ConfigImport, ctx context.Context, logger *zap.Logger,
 	repo localrepo.LocalRepoIface, newImporters imports.NewImportersFunc,
 ) error {
+	logger.Info("start import")
+	defer func() { logger.Info("finish import") }()
 	// load isucontinuous.yaml
 	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
 	if err != nil {

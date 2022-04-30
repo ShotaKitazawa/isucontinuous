@@ -34,6 +34,8 @@ func runSetup(
 	conf ConfigSetup, ctx context.Context, logger *zap.Logger,
 	repo localrepo.LocalRepoIface, newInstallers install.NewInstallersFunc,
 ) error {
+	logger.Info("start setup")
+	defer func() { logger.Info("finish setup") }()
 	// load isucontinuous.yaml
 	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
 	if err != nil {
