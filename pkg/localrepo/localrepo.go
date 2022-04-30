@@ -130,7 +130,10 @@ func (l *LocalRepo) SwitchDetachedBranch(ctx context.Context, revision string) e
 }
 
 func (l *LocalRepo) Push(ctx context.Context) error {
-	if _, stderr, err := l.shell.Exec(ctx, l.absPath, `git commit -a -m "commit by isu-continuous"`); err != nil {
+	if _, stderr, err := l.shell.Exec(ctx, l.absPath, `git add -A`); err != nil {
+		return myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	if _, stderr, err := l.shell.Exec(ctx, l.absPath, `git commit -m "commit by isu-continuous"`); err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	if _, stderr, err := l.shell.Exec(ctx, l.absPath, `git push origin HEAD`); err != nil {
