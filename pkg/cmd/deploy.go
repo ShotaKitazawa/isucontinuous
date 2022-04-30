@@ -10,7 +10,6 @@ import (
 	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/deploy"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/localrepo"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/shell"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/slack"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/template"
 )
@@ -37,40 +36,30 @@ func RunDeploy(conf ConfigDeploy) error {
 	if err != nil {
 		return err
 	}
-	// set importers
-	templator := template.New(conf.GitRevision)
-	deployers := make(map[string]*deploy.Deployer)
-	for _, host := range isucontinuous.Hosts {
-		var s shell.Iface
-		if host.IsLocal() {
-			s = shell.NewLocalClient(exec.New())
-		} else {
-			s, err = shell.NewSshClient(host.Host, host.Port, host.User, host.Password, host.Key)
-			if err != nil {
-				return err
-			}
-		}
-		deployers[host.Host] = deploy.New(logger, s, templator, conf.LocalRepoPath)
-	}
 	slackClient := slack.NewClient(logger, conf.SlackToken, isucontinuous.Slack.DefaultChannelId)
-	return runDeploy(conf, ctx, logger, repo, deployers, slackClient)
+	return runDeploy(conf, ctx, logger, repo, slackClient, deploy.NewDeployers)
 }
 
 func runDeploy(
 	conf ConfigDeploy, ctx context.Context, logger *zap.Logger,
-	repo localrepo.LocalRepoIface, deployers map[string]*deploy.Deployer,
-	slackClient slack.ClientIface,
+	repo localrepo.LocalRepoIface, slackClient slack.ClientIface,
+	newDeployersFunc deploy.NewDeployersFunc,
 ) error {
-	// Load isucontinus.yaml
-	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
-	if err != nil {
-		return err
-	}
 	// Fetch remote-repo & switch to gitRevision
 	if err := repo.Fetch(ctx); err != nil {
 		return err
 	}
 	if err := repo.SwitchDetachedBranch(ctx, conf.GitRevision); err != nil {
+		return err
+	}
+	// Load isucontinus.yaml
+	isucontinuous, err := repo.LoadConf(isucontinuousFilename)
+	if err != nil {
+		return err
+	}
+	// Set deployers
+	deployers, err := newDeployersFunc(logger, template.New(conf.GitRevision), conf.LocalRepoPath, isucontinuous.Hosts)
+	if err != nil {
 		return err
 	}
 	// Deploy files to per host

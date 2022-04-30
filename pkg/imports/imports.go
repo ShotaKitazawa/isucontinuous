@@ -73,6 +73,9 @@ func (l *Importer) ListUntrackedFiles(ctx context.Context, path string) ([]strin
 	defer func() {
 		_, _, _ = l.shell.Execf(context.Background(), "", `rm -rf "%s"`, filepath.Join(absPath, ".git"))
 	}()
+	if _, stderr, err := l.shell.Execf(ctx, absPath, "git config --global --add safe.directory %s", absPath); err != nil {
+		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
 
 	stdout, stderr, err := l.shell.Exec(ctx, absPath, "git ls-files --others --exclude-standard")
 	if err != nil {

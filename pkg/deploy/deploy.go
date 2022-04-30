@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
+	"k8s.io/utils/exec"
 
 	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
 	myerrros "github.com/ShotaKitazawa/isu-continuous/pkg/errors"
@@ -23,7 +24,30 @@ type Deployer struct {
 	localRepoPath string
 }
 
-func New(logger *zap.Logger, s shell.Iface, templator *template.Templator, localRepoPath string) *Deployer {
+type NewDeployersFunc func(*zap.Logger, *template.Templator, string, []config.Host) (map[string]*Deployer, error)
+
+func NewDeployers(
+	logger *zap.Logger, templator *template.Templator, localRepoPath string,
+	hosts []config.Host,
+) (map[string]*Deployer, error) {
+	deployers := make(map[string]*Deployer)
+	var err error
+	for _, host := range hosts {
+		var s shell.Iface
+		if host.IsLocal() {
+			s = shell.NewLocalClient(exec.New())
+		} else {
+			s, err = shell.NewSshClient(host.Host, host.Port, host.User, host.Password, host.Key)
+			if err != nil {
+				return nil, err
+			}
+		}
+		deployers[host.Host] = new(logger, s, templator, localRepoPath)
+	}
+	return deployers, nil
+}
+
+func new(logger *zap.Logger, s shell.Iface, templator *template.Templator, localRepoPath string) *Deployer {
 	return &Deployer{logger, s, templator, localRepoPath}
 }
 
@@ -33,9 +57,10 @@ func (d Deployer) Deploy(ctx context.Context, targets []config.DeployTarget) err
 		if err := filepath.WalkDir(src, func(path string, info fs.DirEntry, err error) error {
 			if info != nil && !reflect.ValueOf(info).IsNil() && !info.IsDir() {
 				dst := filepath.Join(target.Target, strings.TrimPrefix(path, src))
-				if _, _, err := d.shell.Execf(ctx, "", "test -d %s", filepath.Dir(dst)); err != nil {
-					d.log.Debug(fmt.Sprintf("%s does not exist, mkdir", filepath.Dir(dst)), zap.String("host", d.shell.Host()))
-					if _, _, err := d.shell.Execf(ctx, "", "mkdir -p %s", filepath.Dir(dst)); err != nil {
+				dirname := filepath.Dir(dst)
+				if _, _, err := d.shell.Execf(ctx, "", "test -d %s", dirname); err != nil {
+					d.log.Debug(fmt.Sprintf("%s does not exist, mkdir", dirname), zap.String("host", d.shell.Host()))
+					if _, _, err := d.shell.Execf(ctx, "", "mkdir -p %s", dirname); err != nil {
 						return err
 					}
 				}

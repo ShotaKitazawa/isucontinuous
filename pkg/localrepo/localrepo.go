@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -18,6 +19,9 @@ type LocalRepoIface interface {
 	LoadConf(filename string) (*config.Config, error)
 	CreateFile(name string, data []byte, perm os.FileMode) error
 	Fetch(ctx context.Context) error
+	CurrentBranch(ctx context.Context) (string, error)
+	DiffWithRemote(ctx context.Context) (bool, error)
+	Push(ctx context.Context) error
 	SwitchDetachedBranch(ctx context.Context, revision string) error
 }
 
@@ -90,6 +94,33 @@ func (l *LocalRepo) CreateFile(name string, data []byte, perm os.FileMode) error
 
 func (l *LocalRepo) Fetch(ctx context.Context) error {
 	if _, stderr, err := l.shell.Exec(ctx, l.absPath, "git fetch"); err != nil {
+		return myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	return nil
+}
+
+func (l *LocalRepo) CurrentBranch(ctx context.Context) (string, error) {
+	stdout, stderr, err := l.shell.Execf(ctx, l.absPath, "git branch --show-current")
+	if err != nil {
+		return "", myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	return strings.TrimRight(stdout.String(), "\n"), nil
+}
+
+func (l *LocalRepo) DiffWithRemote(ctx context.Context) (bool, error) {
+	if stdout, stderr, err := l.shell.Exec(ctx, l.absPath, ""); err != nil {
+		return false, myerrors.NewErrorCommandExecutionFailed(stderr)
+	} else if strings.TrimRight(stdout.String(), "\n") != "" {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (l *LocalRepo) Push(ctx context.Context) error {
+	if _, stderr, err := l.shell.Exec(ctx, l.absPath, `git commit -a -m "commit by isu-continuous"`); err != nil {
+		return myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	if _, stderr, err := l.shell.Exec(ctx, l.absPath, `git push origin HEAD`); err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	return nil
