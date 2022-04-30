@@ -17,19 +17,19 @@ var pushCmd = &cobra.Command{
 				LogFilename:   logfile,
 				LocalRepoPath: localRepo,
 			},
-			GitBranch: gitBranch,
+			GitBranch: pushGitBranch,
 		}
 		return cmd.RunPush(conf)
 	},
 }
 
 var (
-	gitBranch string
+	pushGitBranch string
 )
 
 func init() {
 	rootCmd.AddCommand(pushCmd)
-	pushCmd.PersistentFlags().StringVarP(&gitBranch, "branch", "b", "master",
+	pushCmd.PersistentFlags().StringVarP(&pushGitBranch, "branch", "b", "master",
 		"branch-name to push to Git remote-repo")
 
 }

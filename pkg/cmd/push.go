@@ -36,8 +36,11 @@ func runPush(
 	if err != nil {
 		return err
 	} else if currentBranch != conf.GitBranch {
+		if currentBranch == "" {
+			currentBranch = "<detached>"
+		}
 		return fmt.Errorf(
-			"current branch name is %s, exec `isu-continuous sync` command to checkout to %s.",
+			"current branch name is %s. Please exec `sync` command first to checkout to %s.",
 			currentBranch, conf.GitBranch,
 		)
 	}
