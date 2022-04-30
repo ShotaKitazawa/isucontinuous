@@ -13,6 +13,7 @@ import (
 
 const (
 	isucontinuousFilename = "isucontinuous.yaml"
+	revisionStoreFilename = ".revision"
 )
 
 type ConfigCommon struct {

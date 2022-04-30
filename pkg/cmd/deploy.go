@@ -17,6 +17,7 @@ import (
 type ConfigDeploy struct {
 	ConfigCommon
 	GitRevision string
+	Force       bool
 	SlackToken  string
 }
 
@@ -59,13 +60,22 @@ func runDeploy(
 	if err != nil {
 		return err
 	}
+	// Check to have already deployed
+	if !conf.Force {
+		if r, err := repo.GetRevision(ctx, revisionStoreFilename); err == nil {
+			if r != conf.GitRevision {
+				return fmt.Errorf(
+					`"deploy" command has already been executed. Please execute "afterbench" or "deploy --force".`)
+			}
+		}
+	}
 	// Set deployers
 	deployers, err := newDeployersFunc(logger, template.New(conf.GitRevision), conf.LocalRepoPath, isucontinuous.Hosts)
 	if err != nil {
 		return err
 	}
 	// Deploy files to per host
-	return perHostExec(logger, ctx, isucontinuous.Hosts, func(ctx context.Context, host config.Host) error {
+	if err := perHostExec(logger, ctx, isucontinuous.Hosts, func(ctx context.Context, host config.Host) error {
 		deployer := deployers[host.Host]
 		var err error
 		// Notify to Slack
@@ -95,5 +105,9 @@ func runDeploy(
 			return err
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+	// Store revision to local-repo
+	return repo.SetRevision(ctx, revisionStoreFilename, conf.GitRevision)
 }

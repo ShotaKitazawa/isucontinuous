@@ -1,14 +1,15 @@
 package cmd
 
 import (
-	"github.com/ShotaKitazawa/isu-continuous/pkg/cmd"
 	"github.com/spf13/cobra"
+
+	"github.com/ShotaKitazawa/isu-continuous/pkg/cmd"
 )
 
 // syncCmd represents the sync command
 var syncCmd = &cobra.Command{
 	Use:   "sync",
-	Short: "",
+	Short: "synchronize local-repo with remote-repo",
 	RunE: func(c *cobra.Command, args []string) error {
 		executed = true
 		conf := cmd.ConfigSync{

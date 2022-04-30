@@ -24,6 +24,8 @@ type LocalRepoIface interface {
 	CurrentBranch(ctx context.Context) (string, error)
 	DiffWithRemote(ctx context.Context) (bool, error)
 	Reset(ctx context.Context) error
+	GetRevision(ctx context.Context, filename string) (string, error)
+	SetRevision(ctx context.Context, filename, revision string) error
 }
 
 type LocalRepo struct {
@@ -164,4 +166,13 @@ func (l *LocalRepo) Reset(ctx context.Context) error {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	return nil
+}
+
+func (l *LocalRepo) GetRevision(ctx context.Context, filename string) (string, error) {
+	b, err := os.ReadFile(filepath.Join(l.absPath, filename))
+	return string(b), err
+}
+
+func (l *LocalRepo) SetRevision(ctx context.Context, filename, revision string) error {
+	return os.WriteFile(filepath.Join(l.absPath, filename), []byte(revision), 0644)
 }

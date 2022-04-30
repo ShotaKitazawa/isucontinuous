@@ -52,5 +52,9 @@ func runInit(conf ConfigInit, ctx context.Context, logger *zap.Logger) error {
 	if err := repo.CreateFile(isucontinuousFilename, f, 0644); err != nil {
 		return err
 	}
+	// Create .gitignore (.revision is written) to local-repo.
+	if err := repo.CreateFile(".gitignore", []byte(revisionStoreFilename), 0644); err != nil {
+		return err
+	}
 	return nil
 }
