@@ -11,3 +11,9 @@ type Iface interface {
 	Execf(ctx context.Context, basedir string, command string, a ...interface{}) (bytes.Buffer, bytes.Buffer, error)
 	Deploy(ctx context.Context, src, dst string) error
 }
+
+func trimNewLine(buf bytes.Buffer) bytes.Buffer {
+	b := buf.Bytes()
+	bytes.TrimRight(b, "\n")
+	return *bytes.NewBuffer(b)
+}

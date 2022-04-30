@@ -10,9 +10,9 @@ import (
 
 	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
 	myerrors "github.com/ShotaKitazawa/isu-continuous/pkg/errors"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/imports"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/localrepo"
 	"github.com/ShotaKitazawa/isu-continuous/pkg/shell"
+	"github.com/ShotaKitazawa/isu-continuous/pkg/usecases/imports"
 )
 
 type ConfigImport struct {

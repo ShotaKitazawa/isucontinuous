@@ -79,11 +79,8 @@ func (c *SshClient) Exec(ctx context.Context, basedir string, command string) (b
 	if basedir != "" {
 		command = "cd " + basedir + "; " + command
 	}
-	if err := session.Run(command); err != nil {
-		return stdout, stderr, err
-	}
-
-	return stdout, stderr, nil
+	err = session.Run(command)
+	return trimNewLine(stdout), trimNewLine(stderr), err
 }
 
 func (c *SshClient) Execf(ctx context.Context, basedir string, cmd string, a ...interface{}) (bytes.Buffer, bytes.Buffer, error) {
@@ -106,10 +103,10 @@ func (c *SshClient) Deploy(ctx context.Context, src, dst string) error {
 	if err != nil {
 		return err
 	}
+	defer d.Close()
 
 	if _, err := io.Copy(d, s); err != nil {
 		return err
 	}
 	return nil
-
 }

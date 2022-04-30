@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -104,13 +103,13 @@ func (l *LocalRepo) CurrentBranch(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	return strings.TrimRight(stdout.String(), "\n"), nil
+	return stdout.String(), nil
 }
 
 func (l *LocalRepo) DiffWithRemote(ctx context.Context) (bool, error) {
 	if stdout, stderr, err := l.shell.Exec(ctx, l.absPath, ""); err != nil {
 		return false, myerrors.NewErrorCommandExecutionFailed(stderr)
-	} else if strings.TrimRight(stdout.String(), "\n") != "" {
+	} else if stdout.String() != "" {
 		return false, nil
 	}
 	return true, nil
