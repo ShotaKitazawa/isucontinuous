@@ -14,6 +14,6 @@ type Iface interface {
 
 func trimNewLine(buf bytes.Buffer) bytes.Buffer {
 	b := buf.Bytes()
-	bytes.TrimRight(b, "\n")
+	b = bytes.TrimRight(b, "\n")
 	return *bytes.NewBuffer(b)
 }
