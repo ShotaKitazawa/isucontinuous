@@ -148,7 +148,7 @@ func (l *LocalRepo) CurrentBranch(ctx context.Context) (string, error) {
 }
 
 func (l *LocalRepo) DiffWithRemote(ctx context.Context) (bool, error) {
-	if stdout, stderr, err := l.shell.Exec(ctx, l.absPath, "git diff origin/HEAD"); err != nil {
+	if stdout, stderr, err := l.shell.Exec(ctx, l.absPath, "git diff origin/HEAD HEAD"); err != nil {
 		return false, myerrors.NewErrorCommandExecutionFailed(stderr)
 	} else if stdout.String() != "" {
 		return false, nil
