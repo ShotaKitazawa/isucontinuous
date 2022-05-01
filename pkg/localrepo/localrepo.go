@@ -31,6 +31,7 @@ type LocalRepoIface interface {
 	Reset(ctx context.Context) error
 	GetRevision(ctx context.Context) (string, error)
 	SetRevision(ctx context.Context, revision string) error
+	ClearRevision(ctx context.Context) error
 }
 
 type LocalRepo struct {
@@ -192,4 +193,8 @@ func (l *LocalRepo) GetRevision(ctx context.Context) (string, error) {
 
 func (l *LocalRepo) SetRevision(ctx context.Context, revision string) error {
 	return os.WriteFile(filepath.Join(l.absPath, revisionStoreFilename), []byte(revision), 0644)
+}
+
+func (l *LocalRepo) ClearRevision(ctx context.Context) error {
+	return os.Remove(filepath.Join(l.absPath, revisionStoreFilename))
 }
