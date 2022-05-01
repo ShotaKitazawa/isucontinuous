@@ -6,7 +6,7 @@ isucontinuous is tool to support Continuous Deployment, Benchmark, and Profiling
 
 ### Documents
 
-- [docs](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs)
+- [docs](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/index.md)
 
 ### References
 
