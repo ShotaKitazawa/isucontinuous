@@ -39,12 +39,8 @@ func runImport(
 	logger.Info("start import")
 	defer func() { logger.Info("finish import") }()
 	// Check currentBranch
-	currentBranch, err := repo.CurrentBranch(ctx)
-	if err != nil {
+	if _, err := repo.CurrentBranch(ctx); err != nil {
 		return err
-	} else if currentBranch == "" {
-		return fmt.Errorf(
-			"current branch name is <detached>. Please exec `sync` command first to checkout.")
 	}
 	// load isucontinuous.yaml
 	isucontinuous, err := repo.LoadConf()
@@ -57,40 +53,43 @@ func runImport(
 		return err
 	}
 	// Import files from per host
-	return perHostExec(logger, ctx, isucontinuous.Hosts, func(ctx context.Context, host config.Host) error {
-		importer := importers[host.Host]
-		for _, target := range host.ListTarget() {
-			switch importer.FileType(ctx, target.Target) {
-			case imports.IsNotFound:
-				logger.Info(fmt.Sprintf("%s is not found: skip", target.Target), zap.String("host", host.Host))
-				continue
-			case imports.IsFile:
-				content, mode, err := importer.GetFileContent(ctx, target.Target)
-				if err != nil {
-					return err
-				}
-				if err := repo.CreateFile(filepath.Join(host.Host, target.Src), content, mode); err != nil {
-					return err
-				}
-			case imports.IsDirectory:
-				files, err := importer.ListUntrackedFiles(ctx, target.Target)
-				if err != nil {
-					return err
-				}
-				for _, file := range files {
-					fileAbsPath := filepath.Join(target.Target, file)
-					content, mode, err := importer.GetFileContent(ctx, fileAbsPath)
+	return perHostExec(logger, ctx, isucontinuous.Hosts, []task{{
+		"Import",
+		func(ctx context.Context, host config.Host) error {
+			importer := importers[host.Host]
+			for _, target := range host.ListTarget() {
+				switch importer.FileType(ctx, target.Target) {
+				case imports.IsNotFound:
+					logger.Info(fmt.Sprintf("%s is not found: skip", target.Target), zap.String("host", host.Host))
+					continue
+				case imports.IsFile:
+					content, mode, err := importer.GetFileContent(ctx, target.Target)
 					if err != nil {
 						return err
 					}
-					if err := repo.CreateFile(filepath.Join(host.Host, target.Src, file), content, mode); err != nil {
+					if err := repo.CreateFile(filepath.Join(host.Host, target.Src), content, mode); err != nil {
 						return err
 					}
+				case imports.IsDirectory:
+					files, err := importer.ListUntrackedFiles(ctx, target.Target)
+					if err != nil {
+						return err
+					}
+					for _, file := range files {
+						fileAbsPath := filepath.Join(target.Target, file)
+						content, mode, err := importer.GetFileContent(ctx, fileAbsPath)
+						if err != nil {
+							return err
+						}
+						if err := repo.CreateFile(filepath.Join(host.Host, target.Src, file), content, mode); err != nil {
+							return err
+						}
+					}
+				default:
+					return myerrors.NewErrorUnkouwn()
 				}
-			default:
-				return myerrors.NewErrorUnkouwn()
 			}
-		}
-		return nil
-	})
+			return nil
+		},
+	}})
 }

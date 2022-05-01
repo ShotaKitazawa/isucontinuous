@@ -2,6 +2,7 @@ package localrepo
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -121,14 +122,19 @@ func (l *LocalRepo) Fetch(ctx context.Context) error {
 }
 
 func (l *LocalRepo) SwitchAndMerge(ctx context.Context, branch string) error {
+	// get current branch name
+	currentBranch, err := l.CurrentBranch(ctx)
+	if err != nil && !errors.As(err, &myerrors.GitBranchIsDetached{}) {
+		return err
+	}
 	// check to exist
-	if stdout, _, err := l.shell.Exec(ctx, l.absPath, `git branch --format="%(refname:short)" | grep -e ^`+branch+`$`); err != nil {
+	if _, _, err := l.shell.Exec(ctx, l.absPath, `git branch --format="%(refname:short)" | grep -e ^`+branch+`$`); err != nil {
 		// checkout only
 		if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git checkout %s`, branch); err != nil {
 			return myerrors.NewErrorCommandExecutionFailed(stderr)
 		}
 	} else {
-		if stdout.String() != branch {
+		if currentBranch != branch {
 			// checkout & merge
 			if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git checkout %s`, branch); err != nil {
 				return myerrors.NewErrorCommandExecutionFailed(stderr)
@@ -166,12 +172,19 @@ func (l *LocalRepo) CurrentBranch(ctx context.Context) (string, error) {
 	stdout, stderr, err := l.shell.Execf(ctx, l.absPath, "git branch --show-current")
 	if err != nil {
 		return "", myerrors.NewErrorCommandExecutionFailed(stderr)
+	} else if stdout.String() == "" {
+		return "", myerrors.NewErrorGitBranchIsDetached()
 	}
 	return stdout.String(), nil
 }
 
 func (l *LocalRepo) DiffWithRemote(ctx context.Context) (bool, error) {
-	if stdout, stderr, err := l.shell.Exec(ctx, l.absPath, "git diff origin/HEAD HEAD"); err != nil {
+	// get current branch name
+	currentBranch, err := l.CurrentBranch(ctx)
+	if err != nil {
+		return false, err
+	}
+	if stdout, stderr, err := l.shell.Execf(ctx, l.absPath, "git diff origin/%s %s", currentBranch, currentBranch); err != nil {
 		return false, myerrors.NewErrorCommandExecutionFailed(stderr)
 	} else if stdout.String() != "" {
 		return false, nil
@@ -181,6 +194,9 @@ func (l *LocalRepo) DiffWithRemote(ctx context.Context) (bool, error) {
 
 func (l *LocalRepo) Reset(ctx context.Context) error {
 	if _, stderr, err := l.shell.Exec(ctx, l.absPath, "git reset --hard"); err != nil {
+		return myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	if _, stderr, err := l.shell.Exec(ctx, l.absPath, "git clean -df"); err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	return nil

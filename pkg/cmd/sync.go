@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"context"
+	"errors"
 
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 
+	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 )
 
@@ -35,12 +37,12 @@ func runSync(
 	logger.Info("start sync")
 	defer func() { logger.Info("finish sync") }()
 	// if current branch is detached, exec `git reset --hard``
-	if currentBranch, err := repo.CurrentBranch(ctx); err != nil {
-		return err
-	} else if currentBranch == "" {
+	if _, err := repo.CurrentBranch(ctx); err != nil && errors.As(err, &myerrors.GitBranchIsDetached{}) {
 		if err := repo.Reset(ctx); err != nil {
 			return err
 		}
+	} else if err != nil {
+		return err
 	}
 	// Fetch remote-repo & switch to gitBranch
 	if err := repo.Fetch(ctx); err != nil {

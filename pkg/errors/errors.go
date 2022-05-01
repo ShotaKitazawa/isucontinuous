@@ -72,3 +72,15 @@ func NewErrorCommandExecutionFailed(stderr bytes.Buffer) CommandExecutionFailed 
 func (e CommandExecutionFailed) Error() string {
 	return fmt.Sprintf("command execution failed.\n%v", e.message)
 }
+
+/* GitBranchIsDetached */
+
+type GitBranchIsDetached struct{}
+
+func NewErrorGitBranchIsDetached() GitBranchIsDetached {
+	return GitBranchIsDetached{}
+}
+
+func (e GitBranchIsDetached) Error() string {
+	return fmt.Sprintf("current branch name is <detached>. Please exec `sync` command first to checkout.")
+}
