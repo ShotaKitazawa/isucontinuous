@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/ShotaKitazawa/isu-continuous/pkg/cmd"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/cmd"
 )
 
 // initCmd represents the init command
@@ -35,7 +35,7 @@ var (
 func init() {
 	rootCmd.AddCommand(initCmd)
 
-	initCmd.PersistentFlags().StringVarP(&gitUsername, "username", "u", "isu-continuous", "username of GitHub Account")
+	initCmd.PersistentFlags().StringVarP(&gitUsername, "username", "u", "isucontinuous", "username of GitHub Account")
 	initCmd.PersistentFlags().StringVarP(&gitEmail, "email", "e", "isucontinuous@users.noreply.github.com", "email of GitHub Account")
 	initCmd.PersistentFlags().StringVarP(&gitRemoteUrl, "remote-url", "r", "", "URL of remote repository (requirement)")
 	_ = initCmd.MarkPersistentFlagRequired("remote-url")

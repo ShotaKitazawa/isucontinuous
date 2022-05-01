@@ -7,8 +7,8 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 
-	myerrors "github.com/ShotaKitazawa/isu-continuous/pkg/errors"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/localrepo"
+	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 )
 
 type ConfigInit struct {

@@ -9,9 +9,9 @@ import (
 	"gopkg.in/yaml.v3"
 	"k8s.io/utils/exec"
 
-	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
-	myerrors "github.com/ShotaKitazawa/isu-continuous/pkg/errors"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/shell"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
+	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 )
 
 const (
@@ -153,7 +153,7 @@ func (l *LocalRepo) Push(ctx context.Context) error {
 	if _, stderr, err := l.shell.Exec(ctx, l.absPath, `git add -A`); err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	if _, _, err := l.shell.Exec(ctx, l.absPath, `git commit -m "commit by isu-continuous"`); err != nil {
+	if _, _, err := l.shell.Exec(ctx, l.absPath, `git commit -m "commit by isucontinuous"`); err != nil {
 		l.log.Info("failed `git commit`: no commit files")
 	}
 	if _, _, err := l.shell.Exec(ctx, l.absPath, `git push origin HEAD`); err != nil {

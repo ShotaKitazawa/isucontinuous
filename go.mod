@@ -1,4 +1,4 @@
-module github.com/ShotaKitazawa/isu-continuous
+module github.com/ShotaKitazawa/isucontinuous
 
 go 1.17
 

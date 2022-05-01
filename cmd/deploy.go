@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/ShotaKitazawa/isu-continuous/pkg/cmd"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/cmd"
 	"github.com/spf13/cobra"
 )
 

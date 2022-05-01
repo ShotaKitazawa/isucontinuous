@@ -10,9 +10,9 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 
-	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
-	myerrors "github.com/ShotaKitazawa/isu-continuous/pkg/errors"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/shell"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
+	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 )
 
 type Importer struct {

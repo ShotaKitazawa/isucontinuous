@@ -11,9 +11,9 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:          "isu-continuous",
+	Use:          "isucontinuous",
 	SilenceUsage: true,
-	Short:        "isu-continuous is tool to support Continuous Deployment, Benchmark, and Profiling!",
+	Short:        "isucontinuous is tool to support Continuous Deployment, Benchmark, and Profiling!",
 }
 
 var executed bool
@@ -41,5 +41,5 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&logfile, "logfile", "o", filepath.Join(os.Getenv("HOME"), "isucontinuous.log"),
 		"path of log file")
 	rootCmd.PersistentFlags().StringVarP(&localRepo, "local-repo", "l", filepath.Join(os.Getenv("HOME"), "local-repo"),
-		"local repository's path managed by isu-continuous")
+		"local repository's path managed by isucontinuous")
 }

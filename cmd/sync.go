@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/ShotaKitazawa/isu-continuous/pkg/cmd"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/cmd"
 )
 
 // syncCmd represents the sync command

@@ -7,10 +7,10 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 
-	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/localrepo"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/template"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/usecases/profiling"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/template"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/profiling"
 )
 
 type ConfigProfiling struct {

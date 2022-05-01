@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ShotaKitazawa/isu-continuous/pkg/localrepo"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 )

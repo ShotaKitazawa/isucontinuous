@@ -8,10 +8,10 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 
-	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
-	myerrors "github.com/ShotaKitazawa/isu-continuous/pkg/errors"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/localrepo"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/usecases/imports"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
+	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/imports"
 )
 
 type ConfigImport struct {

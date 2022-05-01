@@ -4,8 +4,8 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 
-	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/shell"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 )
 
 type Installer struct {

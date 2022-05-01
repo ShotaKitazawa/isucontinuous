@@ -1,6 +1,6 @@
 package main
 
-import "github.com/ShotaKitazawa/isu-continuous/cmd"
+import "github.com/ShotaKitazawa/isucontinuous/cmd"
 
 func main() {
 	cmd.Execute()

@@ -7,11 +7,11 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 
-	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
-	myerrros "github.com/ShotaKitazawa/isu-continuous/pkg/errors"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/shell"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/slack"
-	"github.com/ShotaKitazawa/isu-continuous/pkg/template"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
+	myerrros "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/slack"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/template"
 )
 
 type AfterBencher struct {

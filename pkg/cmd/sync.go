@@ -6,7 +6,7 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 
-	"github.com/ShotaKitazawa/isu-continuous/pkg/localrepo"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 )
 
 type ConfigSync struct {

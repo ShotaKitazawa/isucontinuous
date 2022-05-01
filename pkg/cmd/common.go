@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/ShotaKitazawa/isu-continuous/pkg/config"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 )
 
 type ConfigCommon struct {
