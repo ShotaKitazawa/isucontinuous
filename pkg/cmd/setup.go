@@ -46,26 +46,39 @@ func runSetup(
 	if err != nil {
 		return err
 	}
-	return perHostExec(logger, ctx, isucontinuous.Hosts, func(ctx context.Context, host config.Host) error {
-		installer := installers[host.Host]
-		// install docker
-		if isucontinuous.IsDockerEnabled() {
-			if err := installer.Docker(ctx); err != nil {
-				return err
+	return perHostExec(logger, ctx, isucontinuous.Hosts, []task{{
+		"Install Docker",
+		func(ctx context.Context, host config.Host) error {
+			installer := installers[host.Host]
+			// install docker
+			if isucontinuous.IsDockerEnabled() {
+				if err := installer.Docker(ctx); err != nil {
+					return err
+				}
 			}
-		}
-		// install netdata
-		if ok, version, publicPort := isucontinuous.IsNetdataEnabled(); isucontinuous.IsDockerEnabled() && ok {
-			if err := installer.Netdata(ctx, version, publicPort); err != nil {
-				return err
+			return nil
+		},
+	}, {
+		"Install netdata",
+		func(ctx context.Context, host config.Host) error {
+			installer := installers[host.Host]
+			if ok, version, publicPort := isucontinuous.IsNetdataEnabled(); isucontinuous.IsDockerEnabled() && ok {
+				if err := installer.Netdata(ctx, version, publicPort); err != nil {
+					return err
+				}
 			}
-		}
-		// install alp
-		if ok, version := isucontinuous.IsAlpEnabled(); ok {
-			if err := installer.Alp(ctx, version); err != nil {
-				return err
+			return nil
+		},
+	}, {
+		"Install alp",
+		func(ctx context.Context, host config.Host) error {
+			installer := installers[host.Host]
+			if ok, version := isucontinuous.IsAlpEnabled(); ok {
+				if err := installer.Alp(ctx, version); err != nil {
+					return err
+				}
 			}
-		}
-		return nil
-	})
+			return nil
+		},
+	}})
 }

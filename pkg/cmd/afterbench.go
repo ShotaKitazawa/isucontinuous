@@ -57,19 +57,21 @@ func runAfterBench(
 		return fmt.Errorf("%s/.revision is not found. exec `deploy` command first", conf.LocalRepoPath)
 	}
 	// AfterBench files to per host
-	if err := perHostExec(logger, ctx, isucontinuous.Hosts, func(ctx context.Context, host config.Host) error {
-		afterbencher, err := newAfterBenchersFunc(logger, template.New(gitRevision), slackClient, host)
-		if err != nil {
-			return err
-		}
-		if err := afterbencher.RunCommand(ctx, host.AfterBench.Command); err != nil {
-			return err
-		}
-		if err := afterbencher.PostToSlack(ctx, host.AfterBench.Target, host.AfterBench.SlackChannelId); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
+	if err := perHostExec(logger, ctx, isucontinuous.Hosts, []task{{
+		"AfterBench",
+		func(ctx context.Context, host config.Host) error {
+			afterbencher, err := newAfterBenchersFunc(logger, template.New(gitRevision), slackClient, host)
+			if err != nil {
+				return err
+			}
+			if err := afterbencher.RunCommand(ctx, host.AfterBench.Command); err != nil {
+				return err
+			}
+			if err := afterbencher.PostToSlack(ctx, host.AfterBench.Target, host.AfterBench.SlackChannelId); err != nil {
+				return err
+			}
+			return nil
+		}}}); err != nil {
 		return err
 	}
 	// Clear revision-file

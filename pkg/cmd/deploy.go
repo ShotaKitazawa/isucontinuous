@@ -75,37 +75,39 @@ func runDeploy(
 		return err
 	}
 	// Deploy files to per host
-	if err := perHostExec(logger, ctx, isucontinuous.Hosts, func(ctx context.Context, host config.Host) error {
-		deployer := deployers[host.Host]
-		var err error
-		// Notify to Slack
-		if err := slackClient.SendText(ctx, host.Deploy.SlackChannel,
-			fmt.Sprintf("*<%s> %s deploying...*", conf.GitRevision, host.Host)); err != nil {
-			return err
-		}
-		defer func() {
-			if err != nil {
-				_ = slackClient.SendText(ctx, host.Deploy.SlackChannel,
-					fmt.Sprintf("*<%s> %s deploy failed* :sob:", conf.GitRevision, host.Host))
-			} else {
-				_ = slackClient.SendText(ctx, host.Deploy.SlackChannel,
-					fmt.Sprintf("*<%s> %s deploy succeeded* :laughing:", conf.GitRevision, host.Host))
+	if err := perHostExec(logger, ctx, isucontinuous.Hosts, []task{{
+		"Deploy",
+		func(ctx context.Context, host config.Host) error {
+			// Notify to Slack
+			if err := slackClient.SendText(ctx, host.Deploy.SlackChannel,
+				fmt.Sprintf("*<%s> %s deploying...*", conf.GitRevision, host.Host)); err != nil {
+				return err
 			}
-		}()
-		// Execute preCommand
-		if err = deployer.RunCommand(ctx, host.Deploy.PreCommand); err != nil {
-			return err
-		}
-		// Deploy
-		if err = deployer.Deploy(ctx, host.Deploy.Targets); err != nil {
-			return err
-		}
-		// Execute postCommand
-		if err = deployer.RunCommand(ctx, host.Deploy.PostCommand); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
+			defer func() {
+				if err != nil {
+					_ = slackClient.SendText(ctx, host.Deploy.SlackChannel,
+						fmt.Sprintf("*<%s> %s deploy failed* :sob:", conf.GitRevision, host.Host))
+				} else {
+					_ = slackClient.SendText(ctx, host.Deploy.SlackChannel,
+						fmt.Sprintf("*<%s> %s deploy succeeded* :laughing:", conf.GitRevision, host.Host))
+				}
+			}()
+			deployer := deployers[host.Host]
+			// Execute preCommand
+			if err = deployer.RunCommand(ctx, host.Deploy.PreCommand); err != nil {
+				return err
+			}
+			// Deploy
+			if err = deployer.Deploy(ctx, host.Deploy.Targets); err != nil {
+				return err
+			}
+			// Execute postCommand
+			if err = deployer.RunCommand(ctx, host.Deploy.PostCommand); err != nil {
+				return err
+			}
+			return nil
+		},
+	}}); err != nil {
 		return err
 	}
 	// Store revision to local-repo

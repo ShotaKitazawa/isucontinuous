@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"go.uber.org/zap"
@@ -9,6 +10,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
+	"github.com/cheggaaa/pb"
 )
 
 type ConfigCommon struct {
@@ -42,21 +44,39 @@ func newLogger(logLevel, logfile string) (*zap.Logger, error) {
 	return logger, nil
 }
 
-func perHostExec(logger *zap.Logger, ctx context.Context, hosts []config.Host, f func(context.Context, config.Host) error) error {
+type taskFunc func(context.Context, config.Host) error
+
+type task struct {
+	name string
+	f    taskFunc
+}
+
+func perHostExec(logger *zap.Logger, ctx context.Context, hosts []config.Host, tasks []task) error {
 	eg, ctx := errgroup.WithContext(ctx)
-	for _, host := range hosts {
+	pbs := make([]*pb.ProgressBar, len(hosts))
+	for idx, host := range hosts {
+		idx := idx
 		host := host
+		pbs[idx] = pb.New(len(tasks)).SetMaxWidth(80)
 		eg.Go(func() error {
-			// view.XXX
-			if err := f(ctx, host); err != nil {
-				logger.Error(err.Error(), zap.String("host", host.Host))
-				return err
+			for _, task := range tasks {
+				pbs[idx] = pbs[idx].Prefix(fmt.Sprintf("[%s] %s", host.Host, task.name))
+				if err := task.f(ctx, host); err != nil {
+					logger.Error(err.Error(), zap.String("host", host.Host))
+					return err
+				}
+				pbs[idx].Increment()
 			}
+			pbs[idx].Prefix(fmt.Sprintf("[%s] %s", host.Host, "Done!"))
 			return nil
 		})
+	}
+	pool, err := pb.StartPool(pbs...)
+	if err != nil {
+		return err
 	}
 	if err := eg.Wait(); err != nil {
 		return err
 	}
-	return nil
+	return pool.Stop()
 }

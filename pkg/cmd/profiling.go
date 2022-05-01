@@ -50,14 +50,17 @@ func runProfiling(
 		return fmt.Errorf("%s/.revision is not found. exec `deploy` command first", conf.LocalRepoPath)
 	}
 	// Profiling files to per host
-	return perHostExec(logger, ctx, isucontinuous.Hosts, func(ctx context.Context, host config.Host) error {
-		profilinger, err := newProfilingersFunc(logger, template.New(gitRevision), host)
-		if err != nil {
-			return err
-		}
-		if err := profilinger.Profiling(ctx, host.Profiling.Command); err != nil {
-			return err
-		}
-		return nil
-	})
+	return perHostExec(logger, ctx, isucontinuous.Hosts, []task{{
+		"Profiling",
+		func(ctx context.Context, host config.Host) error {
+			profilinger, err := newProfilingersFunc(logger, template.New(gitRevision), host)
+			if err != nil {
+				return err
+			}
+			if err := profilinger.Profiling(ctx, host.Profiling.Command); err != nil {
+				return err
+			}
+			return nil
+		},
+	}})
 }
