@@ -2,6 +2,7 @@ package slack
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/slack-go/slack"
 	"go.uber.org/zap"
@@ -9,6 +10,7 @@ import (
 
 type ClientIface interface {
 	SendText(ctx context.Context, channel, text string) error
+	SendFileContent(ctx context.Context, channel, filename, content string) error
 }
 
 type Client struct {
@@ -28,12 +30,29 @@ func NewClient(logger *zap.Logger, token, channel string) ClientIface {
 }
 
 func (c Client) SendText(ctx context.Context, channel, text string) error {
-	channelId := c.defaultChannelId
 	if channel == "" {
 		channel = c.defaultChannelId
 	}
-	if _, _, err := c.client.PostMessageContext(ctx, channelId, slack.MsgOptionText(text, true)); err != nil {
+	if _, _, err := c.client.PostMessageContext(ctx, channel, slack.MsgOptionText(text, true)); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (c Client) SendFileContent(ctx context.Context, channel, filename, content string) error {
+	if channel == "" {
+		channel = c.defaultChannelId
+	}
+	params := slack.FileUploadParameters{
+		Filetype: "txt",
+		File:     filename,
+		Content:  content,
+		Channels: []string{channel},
+	}
+	file, err := c.client.UploadFile(params)
+	if err != nil {
+		return err
+	}
+	c.log.Debug(fmt.Sprintf("sent file %s to Slack", file.Name))
 	return nil
 }

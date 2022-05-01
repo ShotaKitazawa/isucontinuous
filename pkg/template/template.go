@@ -29,7 +29,7 @@ func New(gitRevision string) *Templator {
 		envMap[key] = value
 	}
 	return &Templator{
-		Git: Git{gitRevision},
+		Git: Git{strings.ReplaceAll(gitRevision, "/", "_")},
 		Env: envMap,
 	}
 }

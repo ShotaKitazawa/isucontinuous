@@ -17,3 +17,7 @@ func NewFakeClient(logger *zap.Logger) ClientIface {
 func (c FakeClient) SendText(ctx context.Context, channel, text string) error {
 	return nil
 }
+
+func (c FakeClient) SendFileContent(ctx context.Context, channel, filename, content string) error {
+	return nil
+}
