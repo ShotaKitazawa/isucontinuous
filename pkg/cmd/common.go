@@ -75,8 +75,9 @@ func perHostExec(logger *zap.Logger, ctx context.Context, hosts []config.Host, t
 	if err != nil {
 		return err
 	}
+	defer pool.Stop()
 	if err := eg.Wait(); err != nil {
 		return err
 	}
-	return pool.Stop()
+	return nil
 }
