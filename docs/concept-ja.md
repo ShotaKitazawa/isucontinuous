@@ -7,35 +7,35 @@ isucontinuous には以下のそれぞれのフェーズを意識したコマン
 
 * `init`: Git ローカルリポジトリを初期化する
 
-![init](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/init.jpg)
+![init](./images/init.jpg?raw=true)
 
 * `setup`: 開発に必要なソフトウェアをインストールする
 
-![setup](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/setup.jpg)
+![setup](./images/setup.jpg?raw=true)
 
 * `import`: サーバ上の任意のファイルを取得し Git ローカルリポジトリの管理下にコピーする
 
-![import](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/import.jpg)
+![import](./images/import.jpg?raw=true)
 
 * `push`: Git ローカルリポジトリの更新を Git リモートリポジトリにプッシュする
 
-![push](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/push.jpg)
+![push](./images/push.jpg?raw=true)
 
 * `sync`: Git リモートリポジトリの内容を Git ローカルリポジトリに反映する
 
-![sync](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/sync.jpg)
+![sync](./images/sync.jpg?raw=true)
 
 * `deploy`: 任意のリビジョンにおける Git リモートリポジトリ管理下のファイルをサーバ上にデプロイする
 
-![deploy](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/deploy.jpg)
+![deploy](./images/deploy.jpg?raw=true)
 
 * `profile`: 各サーバにて任意のコマンドを実行する
 
-![profiling](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/profiling.jpg)
+![profiling](./images/profiling.jpg?raw=true)
 
 * `afterbench`: 各サーバ上にて任意のコマンドを実行しプロファイルデータを生成後、指定したディレクトリ以下のファイルを Slack に POST する
 
-![afterbench](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/afterbench.jpg)
+![afterbench](./images/afterbench.jpg?raw=true)
 
 ## Usecase
 
