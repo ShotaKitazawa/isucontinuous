@@ -7,35 +7,35 @@ isucontinuous には以下のそれぞれのフェーズを意識したコマン
 
 * `init`: Git ローカルリポジトリを初期化する
 
-![init](./images/init.jpg?raw=true)
+<img src="./images/init.jpg?raw=true" width=400 height=300>
 
 * `setup`: 開発に必要なソフトウェアをインストールする
 
-![setup](./images/setup.jpg?raw=true)
+<img src="./images/setup.jpg?raw=true" width=400 height=300>
 
 * `import`: サーバ上の任意のファイルを取得し Git ローカルリポジトリの管理下にコピーする
 
-![import](./images/import.jpg?raw=true)
+<img src="./images/import.jpg?raw=true" width=400 height=300>
 
 * `push`: Git ローカルリポジトリの更新を Git リモートリポジトリにプッシュする
 
-![push](./images/push.jpg?raw=true)
+<img src="./images/push.jpg?raw=true" width=400 height=300>
 
 * `sync`: Git リモートリポジトリの内容を Git ローカルリポジトリに反映する
 
-![sync](./images/sync.jpg?raw=true)
+<img src="./images/sync.jpg?raw=true" width=400 height=300>
 
 * `deploy`: 任意のリビジョンにおける Git リモートリポジトリ管理下のファイルをサーバ上にデプロイする
 
-![deploy](./images/deploy.jpg?raw=true)
+<img src="./images/deploy.jpg?raw=true" width=400 height=300>
 
 * `profile`: 各サーバにて任意のコマンドを実行する
 
-![profiling](./images/profiling.jpg?raw=true)
+<img src="./images/profiling.jpg?raw=true" width=400 height=300>
 
 * `afterbench`: 各サーバ上にて任意のコマンドを実行しプロファイルデータを生成後、指定したディレクトリ以下のファイルを Slack に POST する
 
-![afterbench](./images/afterbench.jpg?raw=true)
+<img src="./images/afterbench.jpg?raw=true" width=400 height=300>
 
 ## Usecase
 
