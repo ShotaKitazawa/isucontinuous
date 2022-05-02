@@ -7,56 +7,58 @@ isucontinuous には以下のそれぞれのフェーズを意識したコマン
 
 * `init`: Git ローカルリポジトリを初期化する
 
-![](TODO)
+![init](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/init.jpg)
 
 * `setup`: 開発に必要なソフトウェアをインストールする
 
-![](TODO)
+![setup](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/setup.jpg)
 
 * `import`: サーバ上の任意のファイルを取得し Git ローカルリポジトリの管理下にコピーする
 
-![](TODO)
+![import](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/import.jpg)
 
 * `push`: Git ローカルリポジトリの更新を Git リモートリポジトリにプッシュする
 
-![](TODO)
+![push](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/push.jpg)
+
+* `sync`: Git リモートリポジトリの内容を Git ローカルリポジトリに反映する
+
+![sync](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/sync.jpg)
 
 * `deploy`: 任意のリビジョンにおける Git リモートリポジトリ管理下のファイルをサーバ上にデプロイする
 
-![](TODO)
+![deploy](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/deploy.jpg)
 
 * `profile`: 各サーバにて任意のコマンドを実行する
 
-![](TODO)
+![profiling](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/profiling.jpg)
 
 * `afterbench`: 各サーバ上にて任意のコマンドを実行しプロファイルデータを生成後、指定したディレクトリ以下のファイルを Slack に POST する
 
-![](TODO)
-
-* `fetch`: Git リモートリポジトリの内容を Git ローカルリポジトリに反映する
-
-![](TODO)
+![afterbench](https://github.com/ShotaKitazawa/isucontinuous/tree/main/docs/images/afterbench.jpg)
 
 ## Usecase
 
 ### 1. 初期セットアップ
 
-* TODO: 以下のコマンドを利用することを説明する
-    * init
-    * setup
-    * import
-    * push
+1. `init` : ローカルリポジトリの新規作成
+1. isucontinuous.yaml の編集
+1. `setup` : 各種開発用ソフトウェアのインストール
+1. `import` : 各種設定ファイルやソースコードを Git で管理
+1. `push` : GitHub に push
 
 ### 2. 開発・デプロイ
 
-* TODO: 複数人で別ブランチで開発し、以下のコマンドを利用することを説明する
-    * deploy
-    * profile
-    * afterbench
+1. GitHub に push したリポジトリを元に各メンバーが各ブランチで作業
+1. `deploy` : 特定リビジョンの各ファイルを各サーバにデプロイ
+1. `profiling` : 各サーバにてプロファイリング用コマンドを実行
+1. `afterbench` : プロファイルデータを収集し Slack に送信
 
 ### 3. 開発中サーバ上の新たなファイルを Git で管理
 
-* TODO: 以下のコマンドを利用することを説明する
-    * fetch
-    * import
-    * push
+1. redis 等、サーバーに新たなミドルウェアがインストールされる
+1. isucontinuous.yaml に新たな import/deploy 対象を追記
+1. `sync` : ローカルリポジトリを remotes/origin/master と同期
+1. `import` : 各種設定ファイルやソースコードを Git で管理
+1. `push` : GitHub に push
+
