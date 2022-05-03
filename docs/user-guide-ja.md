@@ -5,6 +5,7 @@
 * isucontinuous 管理対象サーバ上に事前に以下のコマンドがインストールされている必要があります。
     * git
     * curl
+    * unzip
 
 * isucontinuous 実行サーバにある秘密鍵に対応する公開鍵が isucontinuous 管理対象サーバ上に配置されている必要があります。
 
