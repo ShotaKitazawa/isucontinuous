@@ -10,7 +10,7 @@ import (
 
 type ClientIface interface {
 	SendText(ctx context.Context, channel, text string) error
-	SendFileContent(ctx context.Context, channel, filename, content string) error
+	SendFileContent(ctx context.Context, channel, filename, content, title string) error
 }
 
 type Client struct {
@@ -39,11 +39,12 @@ func (c Client) SendText(ctx context.Context, channel, text string) error {
 	return nil
 }
 
-func (c Client) SendFileContent(ctx context.Context, channel, filename, content string) error {
+func (c Client) SendFileContent(ctx context.Context, channel, filename, content, title string) error {
 	if channel == "" {
 		channel = c.defaultChannelId
 	}
 	params := slack.FileUploadParameters{
+		Title:    title,
 		Filetype: "txt",
 		File:     filename,
 		Content:  content,

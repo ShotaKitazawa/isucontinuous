@@ -18,6 +18,6 @@ func (c FakeClient) SendText(ctx context.Context, channel, text string) error {
 	return nil
 }
 
-func (c FakeClient) SendFileContent(ctx context.Context, channel, filename, content string) error {
+func (c FakeClient) SendFileContent(ctx context.Context, channel, filename, content, title string) error {
 	return nil
 }

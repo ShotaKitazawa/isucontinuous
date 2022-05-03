@@ -2,6 +2,8 @@ package afterbench
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
 	"strings"
 
 	"go.uber.org/zap"
@@ -62,7 +64,8 @@ func (p AfterBencher) PostToSlack(ctx context.Context, dir, channel string) erro
 		if err != nil {
 			return myerrros.NewErrorCommandExecutionFailed(stderr)
 		}
-		if err := p.slack.SendFileContent(ctx, channel, filename, stdout.String()); err != nil {
+		title := fmt.Sprintf("%s at %s", filepath.Base(filename), p.shell.Host())
+		if err := p.slack.SendFileContent(ctx, channel, filename, stdout.String(), title); err != nil {
 			return err
 		}
 	}
