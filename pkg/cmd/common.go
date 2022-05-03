@@ -79,7 +79,9 @@ func perHostExec(logger *zap.Logger, ctx context.Context, hosts []config.Host, t
 			return nil
 		})
 	}
+	mu.RLock()
 	pool, err := pb.StartPool(pbs...)
+	mu.RUnlock()
 	if err != nil {
 		return err
 	}
