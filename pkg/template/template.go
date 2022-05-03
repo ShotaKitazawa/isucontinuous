@@ -8,8 +8,6 @@ import (
 	"text/template"
 )
 
-var engine = template.New("Templating").Option("missingkey=error")
-
 type Templator struct {
 	Git Git
 	Env map[string]string
@@ -38,6 +36,7 @@ func (t Templator) Exec(text string) (string, error) {
 	if text == "" {
 		return "", nil
 	}
+	engine := template.New("Templating").Option("missingkey=error")
 	tmpl, err := engine.Parse(text)
 	if err != nil {
 		return "", fmt.Errorf("Error to parse template: %w", err)
