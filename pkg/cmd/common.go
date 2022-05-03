@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -54,20 +55,27 @@ type task struct {
 func perHostExec(logger *zap.Logger, ctx context.Context, hosts []config.Host, tasks []task) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	pbs := make([]*pb.ProgressBar, len(hosts))
+	var mu sync.RWMutex
 	for idx, host := range hosts {
 		idx := idx
 		host := host
 		pbs[idx] = pb.New(len(tasks)).SetMaxWidth(80)
 		eg.Go(func() error {
 			for _, task := range tasks {
+				mu.Lock()
 				pbs[idx] = pbs[idx].Prefix(fmt.Sprintf("[%s] %s", host.Host, task.name))
+				mu.Unlock()
 				if err := task.f(ctx, host); err != nil {
 					logger.Error(err.Error(), zap.String("host", host.Host))
 					return err
 				}
+				mu.Lock()
 				pbs[idx].Increment()
+				mu.Unlock()
 			}
+			mu.Lock()
 			pbs[idx].Prefix(fmt.Sprintf("[%s] %s", host.Host, "Done!"))
+			mu.Unlock()
 			return nil
 		})
 	}
@@ -75,7 +83,9 @@ func perHostExec(logger *zap.Logger, ctx context.Context, hosts []config.Host, t
 	if err != nil {
 		return err
 	}
-	defer pool.Stop()
+	defer func() {
+		_ = pool.Stop()
+	}()
 	if err := eg.Wait(); err != nil {
 		return err
 	}
