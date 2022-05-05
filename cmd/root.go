@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -38,8 +39,17 @@ func init() {
 	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 	rootCmd.PersistentFlags().StringVarP(&logLevel, "log-level", "v", "INFO",
 		"log-level (DEBUG, INFO, or ERROR)")
+	refStringEnvVarP(&logLevel, "log-level")
 	rootCmd.PersistentFlags().StringVarP(&logfile, "logfile", "o", filepath.Join(os.Getenv("HOME"), "isucontinuous.log"),
 		"path of log file")
+	refStringEnvVarP(&logfile, "logfile")
 	rootCmd.PersistentFlags().StringVarP(&localRepo, "local-repo", "l", filepath.Join(os.Getenv("HOME"), "local-repo"),
 		"local repository's path managed by isucontinuous")
+	refStringEnvVarP(&localRepo, "local-repo")
+}
+
+func refStringEnvVarP(p *string, name string) {
+	if *p == "" {
+		*p = os.Getenv(strings.ToUpper(strings.ReplaceAll(name, "-", "_")))
+	}
 }

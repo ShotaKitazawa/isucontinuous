@@ -24,8 +24,13 @@ var afterbenchCmd = &cobra.Command{
 	},
 }
 
+var (
+	afterbenchSlackToken string
+)
+
 func init() {
 	rootCmd.AddCommand(afterbenchCmd)
-	afterbenchCmd.PersistentFlags().StringVarP(&deploySlackToken, "slack-token", "t", "",
+	afterbenchCmd.PersistentFlags().StringVarP(&afterbenchSlackToken, "slack-token", "t", "",
 		"slack token of workspace where deployment notification will be sent")
+	refStringEnvVarP(&afterbenchSlackToken, "slack-token")
 }
