@@ -37,8 +37,7 @@ func init() {
 		"branch-name, tag-name, or commit-hash of deployed from Git remote-repo")
 	deployCmd.PersistentFlags().BoolVarP(&deployForce, "force", "f", false,
 		"force deploy")
-	deployCmd.PersistentFlags().StringVarP(&deploySlackToken, "slack-token", "t", "",
+	deployCmd.PersistentFlags().StringVarP(&deploySlackToken, "slack-token", "t", getenvDefault("SLACK_TOKEN", ""),
 		"slack token of workspace where deployment notification will be sent")
-	refStringEnvVarP(&deploySlackToken, "slack-token")
-	requiredFlag(&gitRemoteUrl, "slack-token")
+	_ = initCmd.MarkPersistentFlagRequired("slack-token")
 }

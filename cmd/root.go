@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -37,26 +36,20 @@ var (
 
 func init() {
 	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
-	rootCmd.PersistentFlags().StringVarP(&logLevel, "log-level", "v", "INFO",
+	rootCmd.PersistentFlags().StringVarP(&logLevel, "log-level", "v", getenvDefault("LOG_LEVEL", "INFO"),
 		"log-level (DEBUG, INFO, or ERROR)")
-	refStringEnvVarP(&logLevel, "log-level")
-	rootCmd.PersistentFlags().StringVarP(&logfile, "logfile", "o", filepath.Join(os.Getenv("HOME"), "isucontinuous.log"),
+	defaultLogfile := filepath.Join(os.Getenv("HOME"), "isucontinuous.log")
+	rootCmd.PersistentFlags().StringVarP(&logfile, "logfile", "o", getenvDefault("LOGFILE", defaultLogfile),
 		"path of log file")
-	refStringEnvVarP(&logfile, "logfile")
-	rootCmd.PersistentFlags().StringVarP(&localRepo, "local-repo", "l", filepath.Join(os.Getenv("HOME"), "local-repo"),
+	defaultLocalRepo := filepath.Join(os.Getenv("HOME"), "local-repo")
+	rootCmd.PersistentFlags().StringVarP(&localRepo, "local-repo", "l", getenvDefault("LOCAL_REPO", defaultLocalRepo),
 		"local repository's path managed by isucontinuous")
-	refStringEnvVarP(&localRepo, "local-repo")
 }
 
-func refStringEnvVarP(p *string, name string) {
-	if *p == "" {
-		*p = os.Getenv(strings.ToUpper(strings.ReplaceAll(name, "-", "_")))
+func getenvDefault(key, defaultV string) string {
+	result := os.Getenv(key)
+	if result == "" {
+		return defaultV
 	}
-}
-
-func requiredFlag(p *string, name string) {
-	if *p == "" {
-		fmt.Printf(`option "%s" must not be empty`, name)
-		os.Exit(1)
-	}
+	return result
 }

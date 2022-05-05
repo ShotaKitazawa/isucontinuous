@@ -31,5 +31,4 @@ func init() {
 	rootCmd.AddCommand(pushCmd)
 	pushCmd.PersistentFlags().StringVarP(&pushGitBranch, "branch", "b", "master",
 		"branch-name to push to Git remote-repo")
-
 }
