@@ -64,7 +64,7 @@ func (p AfterBencher) PostToSlack(ctx context.Context, dir, channel string) erro
 		if err != nil {
 			return myerrros.NewErrorCommandExecutionFailed(stderr)
 		}
-		title := fmt.Sprintf("%s at %s", filepath.Base(filename), p.shell.Host())
+		title := fmt.Sprintf("%s at %s (%s)", filepath.Base(filename), p.shell.Host(), p.template.Git.Revision)
 		if err := p.slack.SendFileContent(ctx, channel, filename, stdout.String(), title); err != nil {
 			return err
 		}
