@@ -38,5 +38,6 @@ func init() {
 	initCmd.PersistentFlags().StringVarP(&gitUsername, "username", "u", "isucontinuous", "username of GitHub Account")
 	initCmd.PersistentFlags().StringVarP(&gitEmail, "email", "e", "isucontinuous@users.noreply.github.com", "email of GitHub Account")
 	initCmd.PersistentFlags().StringVarP(&gitRemoteUrl, "remote-url", "r", "", "URL of remote repository (requirement)")
+	refStringEnvVarP(&gitRemoteUrl, "remote-url")
 	_ = initCmd.MarkPersistentFlagRequired("remote-url")
 }
