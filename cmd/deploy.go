@@ -39,5 +39,6 @@ func init() {
 		"force deploy")
 	deployCmd.PersistentFlags().StringVarP(&deploySlackToken, "slack-token", "t", "",
 		"slack token of workspace where deployment notification will be sent")
+	refStringEnvVarP(&deploySlackToken, "slack-token")
 	_ = initCmd.MarkPersistentFlagRequired("slack-token")
 }
