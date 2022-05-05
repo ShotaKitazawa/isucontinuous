@@ -28,6 +28,7 @@ type LocalRepoIface interface {
 	SwitchDetachedBranch(ctx context.Context, revision string) error
 	Push(ctx context.Context) error
 	CurrentBranch(ctx context.Context) (string, error)
+	IsFirstCommit(ctx context.Context) (bool, error)
 	DiffWithRemote(ctx context.Context) (bool, error)
 	Reset(ctx context.Context) error
 	GetRevision(ctx context.Context) (string, error)
@@ -176,6 +177,17 @@ func (l *LocalRepo) CurrentBranch(ctx context.Context) (string, error) {
 		return "", myerrors.NewErrorGitBranchIsDetached()
 	}
 	return stdout.String(), nil
+}
+
+func (l *LocalRepo) IsFirstCommit(ctx context.Context) (bool, error) {
+	stdout, stderr, err := l.shell.Execf(ctx, l.absPath, "git branch -a")
+	if err != nil {
+		return false, myerrors.NewErrorCommandExecutionFailed(stderr)
+	} else if stdout.String() != "" {
+		return false, nil
+	}
+	return true, nil
+
 }
 
 func (l *LocalRepo) DiffWithRemote(ctx context.Context) (bool, error) {
