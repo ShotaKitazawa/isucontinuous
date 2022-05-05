@@ -35,26 +35,32 @@ func runPush(
 	logger.Info("start push")
 	defer func() { logger.Info("finish push") }()
 	// Check currentBranch
+	var isFirstCommit = false
 	currentBranch, err := repo.CurrentBranch(ctx)
 	if err != nil {
 		return err
 	} else if currentBranch != conf.GitBranch {
-		if currentBranch == "" {
-			currentBranch = "<detached>"
+		isFirstCommit, err = repo.IsFirstCommit(ctx)
+		if err != nil {
+			return err
+		} else if isFirstCommit {
+			if currentBranch == "" {
+				currentBranch = "<detached>"
+			}
+			return fmt.Errorf(
+				"current branch name is %s. Please exec `sync` command first to checkout to %s.",
+				currentBranch, conf.GitBranch,
+			)
 		}
-		return fmt.Errorf(
-			"current branch name is %s. Please exec `sync` command first to checkout to %s.",
-			currentBranch, conf.GitBranch,
-		)
 	}
 	// Fetch
 	if err := repo.Fetch(ctx); err != nil {
 		return err
 	}
 	// Validate whether ${BRANCH} == remotes/origin/${BRANCH}
-	if ok, err := repo.DiffWithRemote(ctx); err != nil {
+	if ok, err := repo.DiffWithRemote(ctx); err != nil && !isFirstCommit {
 		return err
-	} else if !ok {
+	} else if !ok && !isFirstCommit {
 		return fmt.Errorf("there are differences between %s and remotes/origin/%s", conf.GitBranch, conf.GitBranch)
 	}
 	// Execute add, commit, and push
