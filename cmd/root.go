@@ -53,3 +53,10 @@ func refStringEnvVarP(p *string, name string) {
 		*p = os.Getenv(strings.ToUpper(strings.ReplaceAll(name, "-", "_")))
 	}
 }
+
+func requiredFlag(p *string, name string) {
+	if *p == "" {
+		fmt.Printf(`option "%s" must not be empty`, name)
+		os.Exit(1)
+	}
+}
