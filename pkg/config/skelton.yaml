@@ -9,15 +9,15 @@ slack:
   default_channel_id: ""
 hosts:
 - host: localhost
-  user: root
-  key: /root/.ssh/id_rsa
-  deploy:
+  user: &user root
+  key: &key /root/.ssh/id_rsa
+  deploy: &deploy
     slack_channel_id: ""
     pre_command: >-
       rm -f "{{.Env.ACCESSLOG_PATH}}";
       rm -f "{{.Env.SLOWLOG_PATH}}";
     post_command: >-
-      sudo systemctl restart isucondition.go.service
+      sudo systemctl restart mysql nginx && sudo systemctl restart isucondition.go.service
     targets:
     - src: nginx
       target: /etc/nginx
@@ -25,16 +25,18 @@ hosts:
       target: /etc/mysql
     - src: go
       target: /home/isucon/webapp/go
-      compile: make
-  profiling:
-    command: go tool pprof --output {{.Env.HOME}}/pprof/profile-{{.Git.CommitHash}}.pb.gz http://localhost:3000/debug/pprof/profile?seconds=90
-  after_bench:
-    slack_channel_id: ""
-    target: /profile/{{.Git.CommitHash}}/
+      compile: /home/isucon/local/go/bin/go build .
+  profiling: &profiling
     command: >-
-      mkdir -p /profile/{{.Git.CommitHash}};
-      if [ -f {{.env.HOME}}/pprof/profile-{{.Git.CommitHash}}.pb.gz ]; then
-        go tool pprof -top {{.env.HOME}}/pprof/profile-{{.Git.CommitHash}}.pb.gz > /profile/{{.Git.CommitHash}}/pprof_top;
+      PPROF_TMPDIR=/pprof/{{.Git.Revision}} /home/isucon/local/go/bin/go tool pprof /home/isucon/webapp/go/isucondition http://localhost:6060/debug/fgprof?seconds=90
+  after_bench: &after_bench
+    slack_channel_id: ""
+    target: /profile/{{.Git.Revision}}/
+    command: >-
+      mkdir -p /profile/{{.Git.Revision}};
+      PPROF_FILENAME=$(ls /root/pprof/tmp/ -tr | tail -n1);
+      if [ -f "/root/pprof/tmp/$PPROF_FILENAME" ]; then
+        /home/isucon/local/go/bin/go tool pprof -top -cum /root/pprof/tmp/$PPROF_FILENAME > /profile/{{.Git.Revision}}/pprof_top_cum;
       fi;
-      cat "{{.Env.ACCESSLOG_PATH}}" | alp ltsv -r --sort sum > /profile/{{.Git.CommitHash}}/accesslog;
-      cat "{{.Env.SLOWLOG_PATH}}" | docker run -i --rm matsuu/pt-query-digest > /profile/{{.Git.CommitHash}}/slowlog;
+      cat "{{.Env.ACCESSLOG_PATH}}" | alp ltsv -r --sort sum > /profile/{{.Git.Revision}}/accesslog;
+      cat "{{.Env.SLOWLOG_PATH}}" | docker run -i --rm matsuu/pt-query-digest > /profile/{{.Git.Revision}}/slowlog;
