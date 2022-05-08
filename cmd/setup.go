@@ -10,6 +10,9 @@ import (
 var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Install some softwares",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return checkRequiredFlags(cmd.Flags())
+	},
 	RunE: func(c *cobra.Command, args []string) error {
 		executed = true
 		conf := cmd.ConfigSetup{

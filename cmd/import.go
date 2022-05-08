@@ -10,6 +10,9 @@ import (
 var importCmd = &cobra.Command{
 	Use:   "import",
 	Short: "Import some files from hosts[].deploy.files[].target",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return checkRequiredFlags(cmd.Flags())
+	},
 	RunE: func(c *cobra.Command, args []string) error {
 		executed = true
 		conf := cmd.ConfigImport{

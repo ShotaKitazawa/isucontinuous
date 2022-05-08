@@ -10,6 +10,9 @@ import (
 var afterbenchCmd = &cobra.Command{
 	Use:   "afterbench",
 	Short: "Collect and parse profile data & Send to Slack",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return checkRequiredFlags(cmd.Flags())
+	},
 	RunE: func(c *cobra.Command, args []string) error {
 		executed = true
 		conf := cmd.ConfigAfterBench{

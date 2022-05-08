@@ -1,12 +1,16 @@
 package cmd
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -46,10 +50,43 @@ func init() {
 		"local repository's path managed by isucontinuous")
 }
 
-func getenvDefault(key, defaultV string) string {
+// utils
+
+func getenvDefault(flagName, defaultV string) string {
+	key := strings.ToUpper(strings.ReplaceAll(flagName, "-", "_"))
 	result := os.Getenv(key)
 	if result == "" {
 		return defaultV
 	}
 	return result
+}
+
+const requiredFlagAnnotation = "isucontinuous/required"
+
+func setRequired(cmd *cobra.Command, flagNames ...string) {
+	for _, flagName := range flagNames {
+		if err := cmd.PersistentFlags().SetAnnotation(flagName, requiredFlagAnnotation, []string{"true"}); err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func checkRequiredFlags(flags *pflag.FlagSet) error {
+	requiredError := false
+	flagName := ""
+	flags.VisitAll(func(flag *pflag.Flag) {
+		requiredAnnotation := flag.Annotations[requiredFlagAnnotation]
+		if len(requiredAnnotation) == 0 {
+			return
+		}
+		flagRequired := requiredAnnotation[0] == "true"
+		if flagRequired && !flag.Changed && getenvDefault(flag.Name, "") == "" {
+			requiredError = true
+			flagName = flag.Name
+		}
+	})
+	if requiredError {
+		return errors.New("Required flag `" + flagName + "` has not been set")
+	}
+	return nil
 }

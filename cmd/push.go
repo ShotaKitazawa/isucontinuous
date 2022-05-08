@@ -9,6 +9,9 @@ import (
 var pushCmd = &cobra.Command{
 	Use:   "push",
 	Short: "Push local-repo to origin/${MAIN_BRANCH}",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return checkRequiredFlags(cmd.Flags())
+	},
 	RunE: func(c *cobra.Command, args []string) error {
 		executed = true
 		conf := cmd.ConfigPush{
