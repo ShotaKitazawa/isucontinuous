@@ -36,9 +36,9 @@ hosts:
     target: /profile/{{.Git.Revision}}/
     command: >-
       mkdir -p /profile/{{.Git.Revision}};
-      export PPROF_FILENAME=$(ls /root/pprof/tmp/ -tr | tail -n1);
-      if [ -f "/root/pprof/tmp/$PPROF_FILENAME" ]; then
-        /home/isucon/local/go/bin/go tool pprof -top -cum /root/pprof/tmp/$PPROF_FILENAME > /profile/{{.Git.Revision}}/pprof_top_cum;
+      export PPROF_FILENAME=$(ls /root/pprof/{{.Git.Revision}}/ -tr | tail -n1);
+      if [ -f "/root/pprof/{{.Git.Revision}}/$PPROF_FILENAME" ]; then
+        /home/isucon/local/go/bin/go tool pprof -top -cum /root/pprof/{{.Git.Revision}}/$PPROF_FILENAME > /profile/{{.Git.Revision}}/pprof_top_cum;
       fi;
       cat "{{.Env.ACCESSLOG_PATH}}" | alp ltsv -r --sort sum > /profile/{{.Git.Revision}}/accesslog;
       cat "{{.Env.SLOWLOG_PATH}}" | docker run -i --rm matsuu/pt-query-digest > /profile/{{.Git.Revision}}/slowlog;
