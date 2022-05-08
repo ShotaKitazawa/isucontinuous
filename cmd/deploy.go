@@ -9,6 +9,9 @@ import (
 var deployCmd = &cobra.Command{
 	Use:   "deploy",
 	Short: "Deploy files from specified revision",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return checkRequiredFlags(cmd.Flags())
+	},
 	RunE: func(c *cobra.Command, args []string) error {
 		executed = true
 		conf := cmd.ConfigDeploy{
@@ -37,7 +40,7 @@ func init() {
 		"branch-name, tag-name, or commit-hash of deployed from Git remote-repo")
 	deployCmd.PersistentFlags().BoolVarP(&deployForce, "force", "f", false,
 		"force deploy")
-	deployCmd.PersistentFlags().StringVarP(&deploySlackToken, "slack-token", "t", getenvDefault("SLACK_TOKEN", ""),
+	deployCmd.PersistentFlags().StringVarP(&deploySlackToken, "slack-token", "t", getenvDefault("slack-token", ""),
 		"slack token of workspace where deployment notification will be sent")
-	_ = initCmd.MarkPersistentFlagRequired("slack-token")
+	setRequired(initCmd, "slack-token")
 }

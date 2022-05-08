@@ -10,6 +10,9 @@ import (
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize local repository",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return checkRequiredFlags(cmd.Flags())
+	},
 	RunE: func(c *cobra.Command, args []string) error {
 		executed = true
 		conf := cmd.ConfigInit{
@@ -41,5 +44,5 @@ func init() {
 		"email of GitHub Account")
 	initCmd.PersistentFlags().StringVarP(&gitRemoteUrl, "remote-url", "r", getenvDefault("REMOTE_URL", ""),
 		"URL of remote repository (requirement)")
-	_ = initCmd.MarkPersistentFlagRequired("remote-url")
+	setRequired(initCmd, "remote-url")
 }

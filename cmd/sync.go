@@ -10,6 +10,9 @@ import (
 var syncCmd = &cobra.Command{
 	Use:   "sync",
 	Short: "synchronize local-repo with remote-repo",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return checkRequiredFlags(cmd.Flags())
+	},
 	RunE: func(c *cobra.Command, args []string) error {
 		executed = true
 		conf := cmd.ConfigSync{
