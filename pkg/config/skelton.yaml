@@ -36,7 +36,7 @@ hosts:
     target: /profile/{{.Git.Revision}}/
     command: >-
       mkdir -p /profile/{{.Git.Revision}};
-      PPROF_FILENAME=$(ls /root/pprof/tmp/ -tr | tail -n1);
+      export PPROF_FILENAME=$(ls /root/pprof/tmp/ -tr | tail -n1);
       if [ -f "/root/pprof/tmp/$PPROF_FILENAME" ]; then
         /home/isucon/local/go/bin/go tool pprof -top -cum /root/pprof/tmp/$PPROF_FILENAME > /profile/{{.Git.Revision}}/pprof_top_cum;
       fi;
