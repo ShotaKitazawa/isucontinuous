@@ -35,4 +35,5 @@ func init() {
 	rootCmd.AddCommand(afterbenchCmd)
 	afterbenchCmd.PersistentFlags().StringVarP(&afterbenchSlackToken, "slack-token", "t", getenvDefault("SLACK_TOKEN", ""),
 		"slack token of workspace where deployment notification will be sent")
+	setRequired(afterbenchCmd, "slack-token")
 }
