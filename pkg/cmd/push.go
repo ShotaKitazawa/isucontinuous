@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
+
+	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 )
 
 type ConfigPush struct {
@@ -35,32 +37,31 @@ func runPush(
 	logger.Info("start push")
 	defer func() { logger.Info("finish push") }()
 	// Check currentBranch
-	var isFirstCommit = false
 	currentBranch, err := repo.CurrentBranch(ctx)
 	if err != nil {
 		return err
 	} else if currentBranch != conf.GitBranch {
-		isFirstCommit, err = repo.IsFirstCommit(ctx)
-		if err != nil {
-			return err
-		} else if isFirstCommit {
-			if currentBranch == "" {
-				currentBranch = "<detached>"
-			}
-			return fmt.Errorf(
-				"current branch name is %s. Please exec `sync` command first to checkout to %s.",
-				currentBranch, conf.GitBranch,
-			)
+		if currentBranch == "" {
+			currentBranch = "<detached>"
 		}
+		return fmt.Errorf(
+			"current branch name is %s. Please exec `sync` command first to checkout to %s.",
+			currentBranch, conf.GitBranch,
+		)
 	}
 	// Fetch
 	if err := repo.Fetch(ctx); err != nil {
 		return err
 	}
 	// Validate whether ${BRANCH} == remotes/origin/${BRANCH}
-	if ok, err := repo.DiffWithRemote(ctx); err != nil && !isFirstCommit {
-		return err
-	} else if !ok && !isFirstCommit {
+	if ok, err := repo.DiffWithRemote(ctx); err != nil {
+		switch err.(type) {
+		case myerrors.GitBranchIsFirstCommit:
+			// pass
+		default:
+			return err
+		}
+	} else if !ok {
 		return fmt.Errorf("there are differences between %s and remotes/origin/%s", conf.GitBranch, conf.GitBranch)
 	}
 	// Execute add, commit, and push

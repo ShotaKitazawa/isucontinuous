@@ -197,6 +197,9 @@ func (l *LocalRepo) DiffWithRemote(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	if stdout, stderr, err := l.shell.Execf(ctx, l.absPath, "git diff origin/%s %s", currentBranch, currentBranch); err != nil {
+		if isFirstCommit, _ := l.IsFirstCommit(ctx); isFirstCommit {
+			return false, myerrors.NewErrorGitBranchIsFirstCommit()
+		}
 		return false, myerrors.NewErrorCommandExecutionFailed(stderr)
 	} else if stdout.String() != "" {
 		return false, nil

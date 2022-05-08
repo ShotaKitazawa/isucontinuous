@@ -84,3 +84,15 @@ func NewErrorGitBranchIsDetached() GitBranchIsDetached {
 func (e GitBranchIsDetached) Error() string {
 	return fmt.Sprintf("current branch name is <detached>. Please exec `sync` command first to checkout.")
 }
+
+/* GitBranchIsFirstCommit */
+
+type GitBranchIsFirstCommit struct{}
+
+func NewErrorGitBranchIsFirstCommit() GitBranchIsFirstCommit {
+	return GitBranchIsFirstCommit{}
+}
+
+func (e GitBranchIsFirstCommit) Error() string {
+	return fmt.Sprintf("current branch name is <detached>. Please exec `sync` command first to checkout.")
+}
