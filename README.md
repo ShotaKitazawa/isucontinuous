@@ -10,7 +10,7 @@ isucontinuous is tool to support Continuous Deployment, Benchmark, and Profiling
 
 ### References
 
-- 
+- [ISUCON で使えるツールを作った](https://speakerdeck.com/shotakitazawa/isucon-teshi-eruturuwozuo-tuta) - Japanese
 
 ### Licence
 
