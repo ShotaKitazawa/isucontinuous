@@ -77,7 +77,7 @@ func runAfterBench(
 			defer func() {
 				suffix := fmt.Sprintf("%d", time.Now().Unix())
 				if err := afterbencher.CleanUp(ctx, host.AfterBench.Target, suffix); err != nil {
-					logger.Error("failed to cleanup", zap.String("host", host.Host))
+					logger.Error(fmt.Sprintf("failed to cleanup: %v", err), zap.String("host", host.Host))
 				}
 			}()
 
