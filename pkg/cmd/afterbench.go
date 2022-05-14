@@ -60,6 +60,10 @@ func runAfterBench(
 	if err := perHostExec(logger, ctx, isucontinuous.Hosts, []task{{
 		"AfterBench",
 		func(ctx context.Context, host config.Host) error {
+			if host.AfterBench.Target == "" {
+				logger.Debug("skip bacause target is not specified", zap.String("host", host.Host))
+				return nil
+			}
 			afterbencher, err := newAfterBenchersFunc(logger, template.New(gitRevision), slackClient, host)
 			if err != nil {
 				return err
