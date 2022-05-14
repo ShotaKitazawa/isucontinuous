@@ -75,7 +75,10 @@ func runAfterBench(
 			}
 			// cleanup some profile data
 			defer func() {
-				_ = afterbencher.CleanUp(ctx, host.AfterBench.Target, fmt.Sprintf("%d", time.Now().Unix()))
+				suffix := fmt.Sprintf("%d", time.Now().Unix())
+				if err := afterbencher.CleanUp(ctx, host.AfterBench.Target, suffix); err != nil {
+					logger.Error("failed to cleanup", zap.String("host", host.Host))
+				}
 			}()
 			// post profile data to Slack
 			if err := afterbencher.PostToSlack(ctx, host.AfterBench.Target, host.AfterBench.SlackChannelId); err != nil {
