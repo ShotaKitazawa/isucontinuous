@@ -52,6 +52,7 @@ func (p AfterBencher) RunCommand(ctx context.Context, command string) error {
 
 func (p AfterBencher) PostToSlack(ctx context.Context, dir, channel string) error {
 	dir, err := p.template.Exec(dir)
+	dir = filepath.Clean(dir)
 	if err != nil {
 		return err
 	}
@@ -74,6 +75,7 @@ func (p AfterBencher) PostToSlack(ctx context.Context, dir, channel string) erro
 
 func (p AfterBencher) Prepare(ctx context.Context, dir string) error {
 	dir, err := p.template.Exec(dir)
+	dir = filepath.Clean(dir)
 	if err != nil {
 		return err
 	}
@@ -85,6 +87,7 @@ func (p AfterBencher) Prepare(ctx context.Context, dir string) error {
 
 func (p AfterBencher) CleanUp(ctx context.Context, dir, suffix string) error {
 	srcDir, err := p.template.Exec(dir)
+	srcDir = filepath.Clean(srcDir)
 	if err != nil {
 		return err
 	}

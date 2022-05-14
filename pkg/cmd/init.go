@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"os"
+	"path/filepath"
 
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
@@ -34,7 +35,7 @@ func runInit(conf ConfigInit, ctx context.Context, logger *zap.Logger) error {
 	if _, err := os.Stat(conf.LocalRepoPath); err == nil {
 		return myerrors.NewErrorFileAlreadyExisted(conf.LocalRepoPath)
 	}
-	if err := os.Mkdir(conf.LocalRepoPath, 0755); err != nil {
+	if err := os.Mkdir(filepath.Clean(conf.LocalRepoPath), 0755); err != nil {
 		return err
 	}
 	// Initialize local-repo
