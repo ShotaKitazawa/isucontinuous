@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
@@ -68,9 +69,15 @@ func runAfterBench(
 			if err != nil {
 				return err
 			}
+			// execute to collect & parse profile data
 			if err := afterbencher.RunCommand(ctx, host.AfterBench.Command); err != nil {
 				return err
 			}
+			// cleanup some profile data
+			defer func() {
+				_ = afterbencher.CleanUp(ctx, host.AfterBench.Target, fmt.Sprintf("%d", time.Now().Unix()))
+			}()
+			// post profile data to Slack
 			if err := afterbencher.PostToSlack(ctx, host.AfterBench.Target, host.AfterBench.SlackChannelId); err != nil {
 				return err
 			}

@@ -71,3 +71,15 @@ func (p AfterBencher) PostToSlack(ctx context.Context, dir, channel string) erro
 	}
 	return nil
 }
+
+func (p AfterBencher) CleanUp(ctx context.Context, dir, suffix string) error {
+	srcDir, err := p.template.Exec(dir)
+	if err != nil {
+		return err
+	}
+	dstDir := fmt.Sprintf("%s.%s", srcDir, suffix)
+	if _, stderr, err := p.shell.Execf(ctx, "", "mv %s %s", srcDir, dstDir); err != nil {
+		return myerrros.NewErrorCommandExecutionFailed(stderr)
+	}
+	return nil
+}
