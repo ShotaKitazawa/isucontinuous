@@ -69,17 +69,22 @@ func runAfterBench(
 			if err != nil {
 				return err
 			}
-			// execute to collect & parse profile data
-			if err := afterbencher.RunCommand(ctx, host.AfterBench.Command); err != nil {
+			// mkdir location to deploy profile data
+			if err := afterbencher.Prepare(ctx, host.AfterBench.Target); err != nil {
 				return err
 			}
-			// cleanup some profile data
+			// cleanup location of profile data
 			defer func() {
 				suffix := fmt.Sprintf("%d", time.Now().Unix())
 				if err := afterbencher.CleanUp(ctx, host.AfterBench.Target, suffix); err != nil {
 					logger.Error("failed to cleanup", zap.String("host", host.Host))
 				}
 			}()
+
+			// execute to collect & parse profile data
+			if err := afterbencher.RunCommand(ctx, host.AfterBench.Command); err != nil {
+				return err
+			}
 			// post profile data to Slack
 			if err := afterbencher.PostToSlack(ctx, host.AfterBench.Target, host.AfterBench.SlackChannelId); err != nil {
 				return err
