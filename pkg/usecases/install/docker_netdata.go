@@ -18,7 +18,7 @@ func (i *Installer) Netdata(ctx context.Context, version string, publicPort int)
 
 	// ealry return if netdata has already installed
 	command := fmt.Sprintf(
-		"docker container ps -f name=%s --format {{.ID}}",
+		`docker container ps -f name=%s --format {{.ID}}`,
 		containerName)
 	if stdout, _, _ := i.shell.Exec(ctx, "", command); len(stdout.Bytes()) != 0 {
 		i.log.Info("... Netdata has already been installed", zap.String("host", i.shell.Host()))

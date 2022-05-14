@@ -13,7 +13,7 @@ func (i *Installer) Alp(ctx context.Context, version string) error {
 	i.log.Info("### install alp ###", zap.String("host", i.shell.Host()))
 
 	// ealry return if alp has already installed
-	if stdout, _, _ := i.shell.Exec(ctx, "", "which -a alp"); len(stdout.Bytes()) != 0 {
+	if stdout, _, _ := i.shell.Exec(ctx, "", `which -a alp`); len(stdout.Bytes()) != 0 {
 		i.log.Info("... alp has already been installed", zap.String("host", i.shell.Host()))
 		return nil
 	}
@@ -24,14 +24,14 @@ func (i *Installer) Alp(ctx context.Context, version string) error {
 		// get latest tag
 	}
 	command := fmt.Sprintf(
-		"curl -sL https://github.com/tkuchiki/alp/releases/download/%s/alp_linux_amd64.zip -o /tmp/alp.zip",
+		`curl -sL https://github.com/tkuchiki/alp/releases/download/%s/alp_linux_amd64.zip -o /tmp/alp.zip`,
 		version)
 	if _, stderr, err := i.shell.Exec(ctx, "", command); err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	i.log.Debug("downloaded to /tmp/alp.zip", zap.String("host", i.shell.Host()))
 
-	if _, stderr, err := i.shell.Exec(ctx, "", "unzip /tmp/alp.zip -d /usr/local/bin/"); err != nil {
+	if _, stderr, err := i.shell.Exec(ctx, "", `unzip /tmp/alp.zip -d /usr/local/bin/`); err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 
