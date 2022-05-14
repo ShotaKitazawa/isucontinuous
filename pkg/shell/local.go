@@ -22,10 +22,13 @@ func (c *LocalClient) Host() string {
 	return "localhost"
 }
 
-func (c *LocalClient) Exec(ctx context.Context, basedir string, cmd string) (bytes.Buffer, bytes.Buffer, error) {
+func (c *LocalClient) Exec(ctx context.Context, basedir string, command string) (bytes.Buffer, bytes.Buffer, error) {
 	stdout := bytes.Buffer{}
 	stderr := bytes.Buffer{}
-	cc := c.exec.CommandContext(ctx, "sh", "-c", cmd)
+	if command == "" { // early return
+		return stdout, stderr, nil
+	}
+	cc := c.exec.CommandContext(ctx, "sh", "-c", command)
 	if basedir != "" {
 		cc.SetDir(basedir)
 	}
@@ -35,8 +38,8 @@ func (c *LocalClient) Exec(ctx context.Context, basedir string, cmd string) (byt
 	return trimNewLine(stdout), trimNewLine(stderr), err
 }
 
-func (c *LocalClient) Execf(ctx context.Context, basedir string, cmd string, a ...interface{}) (bytes.Buffer, bytes.Buffer, error) {
-	return c.Exec(ctx, basedir, fmt.Sprintf(cmd, a...))
+func (c *LocalClient) Execf(ctx context.Context, basedir string, command string, a ...interface{}) (bytes.Buffer, bytes.Buffer, error) {
+	return c.Exec(ctx, basedir, fmt.Sprintf(command, a...))
 }
 
 func (c *LocalClient) Deploy(ctx context.Context, src, dst string) error {

@@ -52,10 +52,11 @@ func (p AfterBencher) RunCommand(ctx context.Context, command string) error {
 
 func (p AfterBencher) PostToSlack(ctx context.Context, dir, channel string) error {
 	dir, err := p.template.Exec(dir)
+	dir = filepath.Clean(dir)
 	if err != nil {
 		return err
 	}
-	stdout, stderr, err := p.shell.Execf(ctx, "", "find %s -type f", dir)
+	stdout, stderr, err := p.shell.Execf(ctx, "", `find "%s" -type f`, dir)
 	if err != nil {
 		return myerrros.NewErrorCommandExecutionFailed(stderr)
 	}
@@ -68,6 +69,31 @@ func (p AfterBencher) PostToSlack(ctx context.Context, dir, channel string) erro
 		if err := p.slack.SendFileContent(ctx, channel, filename, stdout.String(), title); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (p AfterBencher) Prepare(ctx context.Context, dir string) error {
+	dir, err := p.template.Exec(dir)
+	dir = filepath.Clean(dir)
+	if err != nil {
+		return err
+	}
+	if _, stderr, err := p.shell.Execf(ctx, "", `mkdir -p "%s"`, dir); err != nil {
+		return myerrros.NewErrorCommandExecutionFailed(stderr)
+	}
+	return nil
+}
+
+func (p AfterBencher) CleanUp(ctx context.Context, dir, suffix string) error {
+	srcDir, err := p.template.Exec(dir)
+	srcDir = filepath.Clean(srcDir)
+	if err != nil {
+		return err
+	}
+	dstDir := fmt.Sprintf("%s.%s", srcDir, suffix)
+	if _, stderr, err := p.shell.Execf(ctx, "", `mv "%s" "%s"`, srcDir, dstDir); err != nil {
+		return myerrros.NewErrorCommandExecutionFailed(stderr)
 	}
 	return nil
 }

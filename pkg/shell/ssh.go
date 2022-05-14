@@ -67,6 +67,9 @@ func NewSshClient(host string, port int, user, password, keyfile string) (*SshCl
 func (c *SshClient) Exec(ctx context.Context, basedir string, command string) (bytes.Buffer, bytes.Buffer, error) {
 	stdout := bytes.Buffer{}
 	stderr := bytes.Buffer{}
+	if command == "" { // early return
+		return stdout, stderr, nil
+	}
 
 	session, err := c.NewSession()
 	if err != nil {

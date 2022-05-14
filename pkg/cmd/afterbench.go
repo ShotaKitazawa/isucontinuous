@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
@@ -60,13 +61,31 @@ func runAfterBench(
 	if err := perHostExec(logger, ctx, isucontinuous.Hosts, []task{{
 		"AfterBench",
 		func(ctx context.Context, host config.Host) error {
+			if host.AfterBench.Target == "" {
+				logger.Debug("skip bacause target is not specified", zap.String("host", host.Host))
+				return nil
+			}
 			afterbencher, err := newAfterBenchersFunc(logger, template.New(gitRevision), slackClient, host)
 			if err != nil {
 				return err
 			}
+			// mkdir location to deploy profile data
+			if err := afterbencher.Prepare(ctx, host.AfterBench.Target); err != nil {
+				return err
+			}
+			// cleanup location of profile data
+			defer func() {
+				suffix := fmt.Sprintf("%d", time.Now().Unix())
+				if err := afterbencher.CleanUp(ctx, host.AfterBench.Target, suffix); err != nil {
+					logger.Error(fmt.Sprintf("failed to cleanup: %v", err), zap.String("host", host.Host))
+				}
+			}()
+
+			// execute to collect & parse profile data
 			if err := afterbencher.RunCommand(ctx, host.AfterBench.Command); err != nil {
 				return err
 			}
+			// post profile data to Slack
 			if err := afterbencher.PostToSlack(ctx, host.AfterBench.Target, host.AfterBench.SlackChannelId); err != nil {
 				return err
 			}
