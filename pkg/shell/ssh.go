@@ -5,16 +5,16 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 
-	"github.com/pkg/sftp"
+	"github.com/melbahja/goph"
 	"golang.org/x/crypto/ssh"
 )
 
 type SshClient struct {
-	*ssh.Client
-	host   string
-	target string
+	*goph.Client
+	host string
 }
 
 func (c *SshClient) Host() string {
@@ -22,46 +22,32 @@ func (c *SshClient) Host() string {
 }
 
 func NewSshClient(host string, port int, user, password, keyfile string) (*SshClient, error) {
-	var config ssh.ClientConfig
+	var auth goph.Auth
+	var err error
 	switch {
 	case keyfile != "":
-		key, err := os.ReadFile(keyfile)
+		auth, err = goph.Key(keyfile, "")
 		if err != nil {
-			return nil, fmt.Errorf("unable to read private key: %v", err)
-		}
-		signer, err := ssh.ParsePrivateKey(key)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse private key: %v", err)
-		}
-		config = ssh.ClientConfig{
-			User: user,
-			Auth: []ssh.AuthMethod{
-				ssh.PublicKeys(signer),
-			},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			log.Fatal(err)
 		}
 	case password != "":
-		config = ssh.ClientConfig{
-			User: user,
-			Auth: []ssh.AuthMethod{
-				ssh.Password(password),
-			},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		}
+		auth = goph.Password(password)
 	default:
 		return nil, fmt.Errorf("neither password nor publicKey was specified")
 	}
-	config.SetDefaults()
-	// Connect to the remote server and perform the SSH handshake.
-	target := fmt.Sprintf("%s:%d", host, port)
-	if port == 0 {
-		target = fmt.Sprintf("%s:22", host)
+	conf := &goph.Config{
+		User:     user,
+		Addr:     host,
+		Port:     uint(port),
+		Auth:     auth,
+		Timeout:  goph.DefaultTimeout,
+		Callback: ssh.InsecureIgnoreHostKey(),
 	}
-	conn, err := ssh.Dial("tcp", target, &config)
+	client, err := goph.NewConn(conf)
 	if err != nil {
-		return nil, fmt.Errorf("unable to connect: %v", err)
+		log.Fatal(err)
 	}
-	return &SshClient{conn, host, target}, nil
+	return &SshClient{client, host}, nil
 }
 
 func (c *SshClient) Exec(ctx context.Context, basedir string, command string) (bytes.Buffer, bytes.Buffer, error) {
@@ -71,18 +57,13 @@ func (c *SshClient) Exec(ctx context.Context, basedir string, command string) (b
 		return stdout, stderr, nil
 	}
 
-	session, err := c.NewSession()
+	cc, err := c.CommandContext(ctx, "sh", "-c", command)
 	if err != nil {
 		return stdout, stderr, fmt.Errorf("Failed to create session: %v", err)
 	}
-	defer session.Close()
-
-	session.Stdout = &stdout
-	session.Stderr = &stderr
-	if basedir != "" {
-		command = "cd " + basedir + "; " + command
-	}
-	err = session.Run(command)
+	cc.Stdout = &stdout
+	cc.Stderr = &stderr
+	err = cc.Run()
 	return trimNewLine(stdout), trimNewLine(stderr), err
 }
 
@@ -96,13 +77,13 @@ func (c *SshClient) Deploy(ctx context.Context, src, dst string) error {
 		return err
 	}
 
-	client, err := sftp.NewClient(c.Client)
+	sftp, err := c.NewSftp()
 	if err != nil {
 		return fmt.Errorf("Failed to create session: %v", err)
 	}
-	defer client.Close()
+	defer sftp.Close()
 
-	d, err := client.Create(dst)
+	d, err := sftp.Create(dst)
 	if err != nil {
 		return err
 	}
