@@ -75,6 +75,7 @@ func runImport(
 					if err != nil {
 						return err
 					}
+					files = importer.ExcludeSymlinkFiles(ctx, files)
 					for _, file := range files {
 						fileAbsPath := filepath.Join(target.Target, file)
 						content, mode, err := importer.GetFileContent(ctx, fileAbsPath)
