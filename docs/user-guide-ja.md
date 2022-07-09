@@ -19,4 +19,4 @@ isucontinuous からのデプロイ通知やプロファイルデータを Slack
 
 * `chat:write.public`
 * `files:write`
-
+* `channels:read`
