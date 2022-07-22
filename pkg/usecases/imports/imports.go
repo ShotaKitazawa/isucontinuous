@@ -105,3 +105,13 @@ func (l *Importer) ListUntrackedFiles(ctx context.Context, path string) ([]strin
 	}
 	return strings.Split(stdout.String(), "\n"), nil
 }
+
+func (l *Importer) ExcludeSymlinkFiles(ctx context.Context, files []string) []string {
+	result := []string{}
+	for _, f := range files {
+		if _, _, err := l.shell.Execf(ctx, "", `test -L %s`, f); err != nil {
+			result = append(result, f)
+		}
+	}
+	return result
+}

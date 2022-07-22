@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -51,28 +52,54 @@ func new(logger *zap.Logger, s shell.Iface, templator *template.Templator, local
 	return &Deployer{logger, s, templator, localRepoPath}
 }
 
-func (d Deployer) Deploy(ctx context.Context, targets []config.DeployTarget) error {
+func (d Deployer) Deploy(ctx context.Context, host string, targets []config.DeployTarget) error {
+	realHost := d.shell.Host()
 	for _, target := range targets {
-		src := filepath.Join(d.localRepoPath, d.shell.Host(), target.Src)
+		src := filepath.Join(d.localRepoPath, host, target.Src)
 		if err := filepath.WalkDir(src, func(path string, info fs.DirEntry, err error) error {
 			if info != nil && !reflect.ValueOf(info).IsNil() && !info.IsDir() {
 				dst := filepath.Join(target.Target, strings.TrimPrefix(path, src))
 				dirname := filepath.Dir(dst)
 				if _, _, err := d.shell.Execf(ctx, "", `test -d "%s"`, dirname); err != nil {
-					d.log.Debug(fmt.Sprintf("%s does not exist, mkdir", dirname), zap.String("host", d.shell.Host()))
+					d.log.Debug(fmt.Sprintf("%s does not exist, mkdir", dirname), zap.String("host", realHost))
 					if _, _, err := d.shell.Execf(ctx, "", `mkdir -p "%s"`, dirname); err != nil {
 						return err
 					}
 				}
-				d.log.Debug(fmt.Sprintf("deploy %s to %s", path, dst), zap.String("host", d.shell.Host()))
-				return d.shell.Deploy(ctx, path, dst)
+				finfo, err := info.Info()
+				if err != nil {
+					return err
+				}
+				if finfo.Mode()&os.ModeSymlink == os.ModeSymlink { // copy source is symlink
+					origin, err := filepath.EvalSymlinks(path)
+					if err != nil {
+						return err
+					}
+					newHostAndSrc := strings.TrimPrefix(origin, d.localRepoPath+"/")
+					if newHostAndSrc == origin {
+						return fmt.Errorf("%s: cannot seek symlink bacause source of symlic isn't in localRepoPath", origin)
+					}
+					newHostAndSrcSlice := strings.Split(newHostAndSrc, "/")
+					newHost := newHostAndSrcSlice[0]
+					newSrc := strings.Join(newHostAndSrcSlice[1:], "/")
+					if len(newHostAndSrcSlice) < 2 {
+						return fmt.Errorf("%s: cannot seek symlink bacause this directory is hostdir", origin)
+					}
+					d.log.Debug(fmt.Sprintf("%s is symlink, seek to %s", path, origin), zap.String("host", realHost))
+					if err := d.Deploy(ctx, newHost, []config.DeployTarget{{Src: newSrc, Target: dst}}); err != nil {
+						return err
+					}
+				} else { // copy source is file
+					d.log.Debug(fmt.Sprintf("deploy %s to %s", path, dst), zap.String("host", realHost))
+					return d.shell.Deploy(ctx, path, dst)
+				}
 			}
 			return nil
 		}); err != nil {
 			return err
 		}
 		if target.Compile != "" {
-			d.log.Debug(fmt.Sprintf(`exec compile: "%s"`, target.Compile), zap.String("host", d.shell.Host()))
+			d.log.Debug(fmt.Sprintf(`exec compile: "%s"`, target.Compile), zap.String("host", host))
 			if _, stderr, err := d.shell.Exec(ctx, target.Target, target.Compile); err != nil {
 				return myerrros.NewErrorCommandExecutionFailed(stderr)
 			}
