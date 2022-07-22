@@ -23,7 +23,7 @@ func TestDeployer_Deploy(t *testing.T) {
 	defer mockCtrl.Finish()
 	ctx := context.Background()
 	_, testFilename, _, _ := runtime.Caller(0)
-	testDir := filepath.Dir(testFilename)
+	testDir := filepath.Join(filepath.Dir(testFilename), "testdata")
 
 	type fields struct {
 		log           *zap.Logger
@@ -32,6 +32,7 @@ func TestDeployer_Deploy(t *testing.T) {
 		localRepoPath string
 	}
 	type args struct {
+		host    string
 		targets []config.DeployTarget
 	}
 	tests := []struct {
@@ -46,94 +47,153 @@ func TestDeployer_Deploy(t *testing.T) {
 				log: zaptest.NewLogger(t),
 				shell: func() shell.Iface {
 					m := mock_shell.NewMockIface(mockCtrl)
-					m.EXPECT().Host().Return("testdata")
+					m.EXPECT().Host().Return("host01")
 					// /etc/nginx/nginx.conf (/etc/nginx is existed)
 					m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx").
 						Return(bytes.Buffer{}, bytes.Buffer{}, nil)
-					m.EXPECT().Deploy(ctx, filepath.Join(testDir, "testdata", "nginx/nginx.conf"), "/etc/nginx/nginx.conf").
+					m.EXPECT().Deploy(ctx, filepath.Join(testDir, "host01", "nginx/nginx.conf"), "/etc/nginx/nginx.conf").
 						Return(nil)
-					// /etc/nginx/sites-available/default (/etc/nginxsites-available isn't existed)
+					// /etc/nginx/sites-available/default (/etc/nginx/sites-available isn't existed)
 					m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx/sites-available").
 						Return(bytes.Buffer{}, bytes.Buffer{}, fmt.Errorf(""))
 					m.EXPECT().Execf(ctx, "", `mkdir -p "%s"`, "/etc/nginx/sites-available").
 						Return(bytes.Buffer{}, bytes.Buffer{}, nil)
-					m.EXPECT().Deploy(ctx, filepath.Join(testDir, "testdata", "nginx/sites-available/default"), "/etc/nginx/sites-available/default").
+					m.EXPECT().Deploy(ctx, filepath.Join(testDir, "host01", "nginx/sites-available/default"), "/etc/nginx/sites-available/default").
 						Return(nil)
-					// /etc/nginx/sites-available/default (/etc/nginxsites-available is existed)
+					// /etc/nginx/sites-available/default (/etc/nginx/sites-available is existed)
 					m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx/sites-available").
 						Return(bytes.Buffer{}, bytes.Buffer{}, nil)
-					m.EXPECT().Deploy(ctx, filepath.Join(testDir, "testdata", "nginx/sites-available/isucondition.conf"), "/etc/nginx/sites-available/isucondition.conf").
+					m.EXPECT().Deploy(ctx, filepath.Join(testDir, "host01", "nginx/sites-available/isucondition.conf"), "/etc/nginx/sites-available/isucondition.conf").
 						Return(nil)
-					// /etc/nginx/sites-enabled/isucondition.conf (/etc/nginxsites-available is existed)
+					// /etc/nginx/sites-enabled/isucondition.conf (/etc/nginx/sites-available is existed)
 					m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx/sites-enabled").
 						Return(bytes.Buffer{}, bytes.Buffer{}, nil)
 					{ // recursive due to resolve symlink
-						m.EXPECT().Host().Return("testdata")
-						// /etc/nginx/sites-available/default (/etc/nginxsites-available is existed)
+						m.EXPECT().Host().Return("host01")
+						// /etc/nginx/sites-available/default (/etc/nginx/sites-available is existed)
 						m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx/sites-enabled").
 							Return(bytes.Buffer{}, bytes.Buffer{}, nil)
-						m.EXPECT().Deploy(ctx, filepath.Join(testDir, "testdata", "nginx/sites-available/isucondition.conf"), "/etc/nginx/sites-enabled/isucondition.conf").
+						m.EXPECT().Deploy(ctx, filepath.Join(testDir, "host01", "nginx/sites-available/isucondition.conf"), "/etc/nginx/sites-enabled/isucondition.conf").
 							Return(nil)
 					}
 					return m
 				}(),
 			},
-			args: args{targets: []config.DeployTarget{
-				{
-					Src:    "nginx",
-					Target: "/etc/nginx",
+			args: args{
+				host: "host01",
+				targets: []config.DeployTarget{
+					{
+						Src:    "nginx",
+						Target: "/etc/nginx",
+					},
 				},
-			}},
+			},
 		},
 		{
-			name: "normal_topLevelFileIsSymlink",
+			name: "normal_symlinkToSameHost",
 			fields: fields{
 				log: zaptest.NewLogger(t),
 				shell: func() shell.Iface {
 					m := mock_shell.NewMockIface(mockCtrl)
-					m.EXPECT().Host().Return("testdata")
+					m.EXPECT().Host().Return("host01")
 					m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc").
 						Return(bytes.Buffer{}, bytes.Buffer{}, nil)
 					{ // recursive due to resolve symlink
-						m.EXPECT().Host().Return("testdata")
+						m.EXPECT().Host().Return("host01")
 						// /etc/nginx/nginx.conf (/etc/nginx is existed)
 						m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx").
 							Return(bytes.Buffer{}, bytes.Buffer{}, nil)
-						m.EXPECT().Deploy(ctx, filepath.Join(testDir, "testdata", "nginx/nginx.conf"), "/etc/nginx/nginx.conf").
+						m.EXPECT().Deploy(ctx, filepath.Join(testDir, "host01", "nginx/nginx.conf"), "/etc/nginx/nginx.conf").
 							Return(nil)
-						// /etc/nginx/sites-available/default (/etc/nginxsites-available isn't existed)
+						// /etc/nginx/sites-available/default (/etc/nginx/sites-available isn't existed)
 						m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx/sites-available").
 							Return(bytes.Buffer{}, bytes.Buffer{}, fmt.Errorf(""))
 						m.EXPECT().Execf(ctx, "", `mkdir -p "%s"`, "/etc/nginx/sites-available").
 							Return(bytes.Buffer{}, bytes.Buffer{}, nil)
-						m.EXPECT().Deploy(ctx, filepath.Join(testDir, "testdata", "nginx/sites-available/default"), "/etc/nginx/sites-available/default").
+						m.EXPECT().Deploy(ctx, filepath.Join(testDir, "host01", "nginx/sites-available/default"), "/etc/nginx/sites-available/default").
 							Return(nil)
-						// /etc/nginx/sites-available/default (/etc/nginxsites-available is existed)
+						// /etc/nginx/sites-available/isucondition.conf (/etc/nginx/sites-available is existed)
 						m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx/sites-available").
 							Return(bytes.Buffer{}, bytes.Buffer{}, nil)
-						m.EXPECT().Deploy(ctx, filepath.Join(testDir, "testdata", "nginx/sites-available/isucondition.conf"), "/etc/nginx/sites-available/isucondition.conf").
+						m.EXPECT().Deploy(ctx, filepath.Join(testDir, "host01", "nginx/sites-available/isucondition.conf"), "/etc/nginx/sites-available/isucondition.conf").
 							Return(nil)
-						// /etc/nginx/sites-enabled/isucondition.conf (/etc/nginxsites-available is existed)
+						// /etc/nginx/sites-enabled/isucondition.conf (/etc/nginx/sites-available is existed)
 						m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx/sites-enabled").
 							Return(bytes.Buffer{}, bytes.Buffer{}, nil)
 						{ // recursive due to resolve symlink
-							m.EXPECT().Host().Return("testdata")
-							// /etc/nginx/sites-available/default (/etc/nginxsites-available is existed)
+							m.EXPECT().Host().Return("host01")
+							// /etc/nginx/sites-available/default (/etc/nginx/sites-available is existed)
 							m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx/sites-enabled").
 								Return(bytes.Buffer{}, bytes.Buffer{}, nil)
-							m.EXPECT().Deploy(ctx, filepath.Join(testDir, "testdata", "nginx/sites-available/isucondition.conf"), "/etc/nginx/sites-enabled/isucondition.conf").
+							m.EXPECT().Deploy(ctx, filepath.Join(testDir, "host01", "nginx/sites-available/isucondition.conf"), "/etc/nginx/sites-enabled/isucondition.conf").
 								Return(nil)
 						}
 					}
 					return m
 				}(),
 			},
-			args: args{targets: []config.DeployTarget{
-				{
-					Src:    "nginx_symlink",
-					Target: "/etc/nginx",
+			args: args{
+				host: "host01",
+				targets: []config.DeployTarget{
+					{
+						Src:    "nginx_symlink",
+						Target: "/etc/nginx",
+					},
 				},
-			}},
+			},
+		},
+		{
+			name: "normal_symlinkToOtherHost",
+			fields: fields{
+				log: zaptest.NewLogger(t),
+				shell: func() shell.Iface {
+					m := mock_shell.NewMockIface(mockCtrl)
+					m.EXPECT().Host().Return("host02")
+					m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc").
+						Return(bytes.Buffer{}, bytes.Buffer{}, nil)
+					{ // recursive due to resolve symlink
+						m.EXPECT().Host().Return("host02")
+						// /etc/nginx/nginx.conf (/etc/nginx is existed)
+						m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx").
+							Return(bytes.Buffer{}, bytes.Buffer{}, nil)
+						m.EXPECT().Deploy(ctx, filepath.Join(testDir, "host01", "nginx/nginx.conf"), "/etc/nginx/nginx.conf").
+							Return(nil)
+						// /etc/nginx/sites-available/default (/etc/nginx/sites-available isn't existed)
+						m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx/sites-available").
+							Return(bytes.Buffer{}, bytes.Buffer{}, fmt.Errorf(""))
+						m.EXPECT().Execf(ctx, "", `mkdir -p "%s"`, "/etc/nginx/sites-available").
+							Return(bytes.Buffer{}, bytes.Buffer{}, nil)
+						m.EXPECT().Deploy(ctx, filepath.Join(testDir, "host01", "nginx/sites-available/default"), "/etc/nginx/sites-available/default").
+							Return(nil)
+						// /etc/nginx/sites-available/isucondition.conf (/etc/nginx/sites-available is existed)
+						m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx/sites-available").
+							Return(bytes.Buffer{}, bytes.Buffer{}, nil)
+						m.EXPECT().Deploy(ctx, filepath.Join(testDir, "host01", "nginx/sites-available/isucondition.conf"), "/etc/nginx/sites-available/isucondition.conf").
+							Return(nil)
+						// /etc/nginx/sites-enabled/isucondition.conf (/etc/nginx/sites-enabled is existed)
+						m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx/sites-enabled").
+							Return(bytes.Buffer{}, bytes.Buffer{}, nil)
+						{ // recursive due to resolve symlink
+							m.EXPECT().Host().Return("host02")
+							// /etc/nginx/sites-available/default (/etc/nginx/sites-available is existed)
+							m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/nginx/sites-enabled").
+								Return(bytes.Buffer{}, bytes.Buffer{}, nil)
+							m.EXPECT().Deploy(ctx, filepath.Join(testDir, "host01", "nginx/sites-available/isucondition.conf"), "/etc/nginx/sites-enabled/isucondition.conf").
+								Return(nil)
+						}
+					}
+					return m
+				}(),
+			},
+			args: args{
+				host: "host02",
+				targets: []config.DeployTarget{
+					{
+						Src:    "nginx_symlink",
+						Target: "/etc/nginx",
+					},
+				},
+			},
 		},
 		{
 			name: "abnormal_symlinkCannotResolve",
@@ -141,18 +201,44 @@ func TestDeployer_Deploy(t *testing.T) {
 				log: zaptest.NewLogger(t),
 				shell: func() shell.Iface {
 					m := mock_shell.NewMockIface(mockCtrl)
-					m.EXPECT().Host().Return("testdata")
+					m.EXPECT().Host().Return("host01")
 					m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc/error").
 						Return(bytes.Buffer{}, bytes.Buffer{}, nil)
 					return m
 				}(),
 			},
-			args: args{targets: []config.DeployTarget{
-				{
-					Src:    "error",
-					Target: "/etc/error",
+			args: args{
+				host: "host01",
+				targets: []config.DeployTarget{
+					{
+						Src:    "error",
+						Target: "/etc/error",
+					},
 				},
-			}},
+			},
+			wantErr: true,
+		},
+		{
+			name: "abnormal_symlinkToOutsideOfLocalRepo",
+			fields: fields{
+				log: zaptest.NewLogger(t),
+				shell: func() shell.Iface {
+					m := mock_shell.NewMockIface(mockCtrl)
+					m.EXPECT().Host().Return("host02")
+					m.EXPECT().Execf(ctx, "", `test -d "%s"`, "/etc").
+						Return(bytes.Buffer{}, bytes.Buffer{}, nil)
+					return m
+				}(),
+			},
+			args: args{
+				host: "host02",
+				targets: []config.DeployTarget{
+					{
+						Src:    "hosts_symlink",
+						Target: "/etc/hosts",
+					},
+				},
+			},
 			wantErr: true,
 		},
 	}
@@ -164,7 +250,7 @@ func TestDeployer_Deploy(t *testing.T) {
 				template:      tt.fields.template,
 				localRepoPath: testDir,
 			}
-			if err := d.Deploy(ctx, tt.args.targets); (err != nil) != tt.wantErr {
+			if err := d.Deploy(ctx, tt.args.host, tt.args.targets); (err != nil) != tt.wantErr {
 				t.Errorf("Deployer.Deploy() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

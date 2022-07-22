@@ -98,7 +98,7 @@ func runDeploy(
 				return err
 			}
 			// Deploy
-			if err = deployer.Deploy(ctx, host.Deploy.Targets); err != nil {
+			if err = deployer.Deploy(ctx, host.Host, host.Deploy.Targets); err != nil {
 				return err
 			}
 			// Execute postCommand
