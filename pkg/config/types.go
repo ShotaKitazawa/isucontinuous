@@ -81,10 +81,10 @@ func (c Host) ListTarget() []DeployTarget {
 }
 
 type Deploy struct {
-	SlackChannel string         `yaml:"slack_channel,omitempty"`
-	PreCommand   string         `yaml:"pre_command,omitempty"`
-	PostCommand  string         `yaml:"post_command,omitempty"`
-	Targets      []DeployTarget `yaml:"targets,omitempty"`
+	SlackChannelId string         `yaml:"slack_channel_id,omitempty"`
+	PreCommand     string         `yaml:"pre_command,omitempty"`
+	PostCommand    string         `yaml:"post_command,omitempty"`
+	Targets        []DeployTarget `yaml:"targets,omitempty"`
 }
 
 type DeployTarget struct {

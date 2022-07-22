@@ -79,16 +79,16 @@ func runDeploy(
 		"Deploy",
 		func(ctx context.Context, host config.Host) error {
 			// Notify to Slack
-			if err := slackClient.SendText(ctx, host.Deploy.SlackChannel,
+			if err := slackClient.SendText(ctx, host.Deploy.SlackChannelId,
 				fmt.Sprintf("*<%s> deploying to %s...*", conf.GitRevision, host.Host)); err != nil {
 				return err
 			}
 			defer func() {
 				if err != nil {
-					_ = slackClient.SendText(ctx, host.Deploy.SlackChannel,
+					_ = slackClient.SendText(ctx, host.Deploy.SlackChannelId,
 						fmt.Sprintf("*<%s> deploy was failed to %s* :sob:", conf.GitRevision, host.Host))
 				} else {
-					_ = slackClient.SendText(ctx, host.Deploy.SlackChannel,
+					_ = slackClient.SendText(ctx, host.Deploy.SlackChannelId,
 						fmt.Sprintf("*<%s> deploy was succeeded to %s* :laughing:", conf.GitRevision, host.Host))
 				}
 			}()
