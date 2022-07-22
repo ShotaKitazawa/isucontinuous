@@ -34,6 +34,7 @@ type LocalRepoIface interface {
 	GetRevision(ctx context.Context) (string, error)
 	SetRevision(ctx context.Context, revision string) error
 	ClearRevision(ctx context.Context) error
+	GetHeadInfo(ctx context.Context) (string, string, error)
 }
 
 type LocalRepo struct {
@@ -228,4 +229,18 @@ func (l *LocalRepo) SetRevision(ctx context.Context, revision string) error {
 
 func (l *LocalRepo) ClearRevision(ctx context.Context) error {
 	return os.Remove(filepath.Join(l.absPath, revisionStoreFilename))
+}
+
+func (l *LocalRepo) GetHeadInfo(ctx context.Context) (string, string, error) {
+	stdout, stderr, err := l.shell.Exec(ctx, l.absPath, "git rev-parse HEAD")
+	if err != nil {
+		return "", "", myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	hash := stdout.String()
+	stdout, stderr, err = l.shell.Exec(ctx, l.absPath, "git log -1 --pretty=%B")
+	if err != nil {
+		return "", "", myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	msg := stdout.String()
+	return hash, msg, nil
 }

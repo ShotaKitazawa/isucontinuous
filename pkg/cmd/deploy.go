@@ -69,6 +69,12 @@ func runDeploy(
 			}
 		}
 	}
+	// Print CommitHash & CommitMessage
+	hash, msg, err := repo.GetHeadInfo(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("hash: %s\nmessage: %s\n\n", hash, msg)
 	// Set deployers
 	deployers, err := newDeployersFunc(logger, template.New(conf.GitRevision), conf.LocalRepoPath, isucontinuous.Hosts)
 	if err != nil {
