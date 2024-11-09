@@ -23,7 +23,7 @@ func NewClient(logger *zap.Logger, token, channel string) ClientIface {
 	api := slack.New(token)
 	if _, err := api.AuthTest(); err != nil {
 		// set fake client
-		logger.Info("Slack client is not authorized. set fake client (nothing to notify)")
+		logger.Info(fmt.Sprintf("Slack client is not authorized. set fake client (nothing to notify): %v", err))
 		return &FakeClient{logger}
 	}
 	return &Client{logger, api, channel}
