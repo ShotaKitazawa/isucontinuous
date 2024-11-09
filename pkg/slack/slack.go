@@ -43,17 +43,17 @@ func (c Client) SendFileContent(ctx context.Context, channel, filename, content,
 	if channel == "" {
 		channel = c.defaultChannelId
 	}
-	params := slack.FileUploadParameters{
+	params := slack.UploadFileV2Parameters{
 		Title:    title,
-		Filetype: "txt",
-		File:     filename,
+		Filename: filename,
 		Content:  content,
-		Channels: []string{channel},
+		FileSize: len(content),
+		Channel:  channel,
 	}
-	file, err := c.client.UploadFile(params)
+	file, err := c.client.UploadFileV2(params)
 	if err != nil {
 		return err
 	}
-	c.log.Debug(fmt.Sprintf("sent file %s to Slack", file.Name))
+	c.log.Debug(fmt.Sprintf("sent file %s to Slack", file.Title))
 	return nil
 }
