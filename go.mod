@@ -6,7 +6,7 @@ require (
 	github.com/cheggaaa/pb v1.0.29
 	github.com/golang/mock v1.6.0
 	github.com/pkg/sftp v1.13.4
-	github.com/slack-go/slack v0.10.3
+	github.com/slack-go/slack v0.15.0
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
 	go.uber.org/zap v1.21.0
