@@ -18,4 +18,4 @@ isucontinuous is tool to support Continuous Deployment, Benchmark, and Profiling
 
 ### Note
 
-「ISUCON」は、LINE株式会社の商標または登録商標です。 [link](https://isucon.net)
+「ISUCON」は、LINEヤフー株式会社の商標または登録商標です。 [link](https://isucon.net)
