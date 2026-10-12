@@ -125,3 +125,45 @@ func TestHasDisabledHost(t *testing.T) {
 		}
 	}
 }
+
+func TestLoad_PasswordWarning(t *testing.T) {
+	t.Setenv("LOAD_TEST_PASSWORD", "secret")
+	cases := []struct {
+		name string
+		yaml string
+		want int
+	}{
+		{"plaintext", "hosts:\n- host: 192.0.2.1\n  password: secret\n", 1},
+		{"template", "hosts:\n- host: 192.0.2.1\n  password: '{{.Env.LOAD_TEST_PASSWORD}}'\n", 0},
+		{"empty", "hosts:\n- host: 192.0.2.1\n", 0},
+		{"disabled", "hosts:\n- host: 192.0.2.1\n  password: secret\n  disabled: true\n- host: 192.0.2.2\n", 0},
+		{"per host once", "hosts:\n- host: 192.0.2.1\n  password: a\n- host: 192.0.2.2\n  password: b\n", 2},
+	}
+	for _, c := range cases {
+		conf, err := Load([]byte(c.yaml))
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if len(conf.Warnings) != c.want {
+			t.Errorf("%s: warnings = %v, want %d", c.name, conf.Warnings, c.want)
+		}
+	}
+}
+
+func TestHasPlaintextPassword(t *testing.T) {
+	cases := []struct {
+		yaml string
+		want bool
+	}{
+		{"hosts:\n- host: a\n  password: secret\n", true},
+		{"hosts:\n- host: a\n  password: '{{.Env.NOT_SET_ANYWHERE}}'\n", false},
+		{"hosts:\n- host: a\n", false},
+		{"hosts:\n- host: a\n  disabled: true\n  password: secret\n", true},
+	}
+	for _, c := range cases {
+		got, err := HasPlaintextPassword([]byte(c.yaml))
+		if err != nil || got != c.want {
+			t.Errorf("%q: got %v, %v; want %v", c.yaml, got, err, c.want)
+		}
+	}
+}

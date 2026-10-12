@@ -61,6 +61,9 @@ func runAfterBench(
 	}
 	// AfterBench files to per host
 	warnings := &warningList{}
+	for _, w := range isucontinuous.Warnings {
+		warnings.Add(w)
+	}
 	hosts, err := perHostExec(logger, ctx, conf.reporter(), isucontinuous.Hosts, []task{{
 		"AfterBench",
 		func(ctx context.Context, host config.Host) error {

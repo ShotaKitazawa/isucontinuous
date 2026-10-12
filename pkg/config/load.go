@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -26,6 +27,7 @@ func Load(data []byte) (*Config, error) {
 		if host.Disabled {
 			continue
 		}
+		rawPassword := host.Password
 		host, err := resolveHost(templator, host)
 		if err != nil {
 			return nil, fmt.Errorf("hosts[%d]: %w", idx, err)
@@ -36,6 +38,10 @@ func Load(data []byte) (*Config, error) {
 		names[host.Name] = idx
 		if err := validateTemplates(templator, host); err != nil {
 			return nil, fmt.Errorf("hosts[%d] (%s): %w", idx, host.Name, err)
+		}
+		if isPlaintextPassword(rawPassword) {
+			conf.Warnings = append(conf.Warnings, fmt.Sprintf(
+				"host %s uses password authentication: use a key instead (password in isucontinuous.yaml is discouraged)", host.Name))
 		}
 		hosts = append(hosts, host)
 	}
@@ -58,6 +64,24 @@ func HasDisabledHost(data []byte) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+// HasPlaintextPassword reads the raw password values so that it works without the environment variables of the hosts.
+func HasPlaintextPassword(data []byte) (bool, error) {
+	conf := &Config{}
+	if err := yaml.Unmarshal(data, conf); err != nil {
+		return false, err
+	}
+	for _, host := range conf.Hosts {
+		if isPlaintextPassword(host.Password) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func isPlaintextPassword(raw string) bool {
+	return raw != "" && !strings.Contains(raw, "{{")
 }
 
 func resolveHost(t *template.Templator, host Host) (Host, error) {

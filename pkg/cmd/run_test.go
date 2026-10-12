@@ -25,6 +25,7 @@ type fakeRepo struct {
 	pushed   *localrepo.PushResult
 	conf     *config.Config
 	disabled bool
+	plain    bool
 	calls    []string
 }
 
@@ -34,8 +35,9 @@ func (f *fakeRepo) DiffWithRemote(ctx context.Context) (bool, error)  { return t
 func (f *fakeRepo) Push(ctx context.Context, m string) (*localrepo.PushResult, error) {
 	return f.pushed, nil
 }
-func (f *fakeRepo) LoadConf() (*config.Config, error) { return f.conf, nil }
-func (f *fakeRepo) HasDisabledHost() (bool, error)    { return f.disabled, nil }
+func (f *fakeRepo) LoadConf() (*config.Config, error)   { return f.conf, nil }
+func (f *fakeRepo) HasDisabledHost() (bool, error)      { return f.disabled, nil }
+func (f *fakeRepo) HasPlaintextPassword() (bool, error) { return f.plain, nil }
 func (f *fakeRepo) SwitchDetachedBranch(ctx context.Context, r string) error {
 	f.calls = append(f.calls, "switch")
 	return nil
@@ -146,5 +148,18 @@ func TestRunDeploy_Result(t *testing.T) {
 	}
 	if want := "switch,slack"; strings.Join(repo.calls, ",") != want {
 		t.Errorf("calls = %v, want %s", repo.calls, want)
+	}
+}
+
+func TestRunPush_PlaintextPasswordWarning(t *testing.T) {
+	for _, plain := range []bool{true, false} {
+		repo := &fakeRepo{branch: "feature", plain: plain, pushed: &localrepo.PushResult{}}
+		res, err := runPush(ConfigPush{GitBranch: "feature"}, context.Background(), zaptest.NewLogger(t), repo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := len(res.Warnings) == 1; got != plain {
+			t.Errorf("plain=%v: warnings = %v", plain, res.Warnings)
+		}
 	}
 }

@@ -95,5 +95,5 @@ func runImport(
 			return nil
 		},
 	}})
-	return &ImportResult{Result{Hosts: hosts}}, err
+	return &ImportResult{Result{Hosts: hosts, Warnings: isucontinuous.Warnings}}, err
 }

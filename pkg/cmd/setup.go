@@ -83,5 +83,5 @@ func runSetup(
 			return nil
 		},
 	}})
-	return &SetupResult{Result{Hosts: hosts}}, err
+	return &SetupResult{Result{Hosts: hosts, Warnings: isucontinuous.Warnings}}, err
 }

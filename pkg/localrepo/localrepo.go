@@ -38,6 +38,7 @@ type PushResult struct {
 type LocalRepoIface interface {
 	LoadConf() (*config.Config, error)
 	HasDisabledHost() (bool, error)
+	HasPlaintextPassword() (bool, error)
 	CreateFile(name string, data []byte, perm os.FileMode) error
 	Fetch(ctx context.Context) error
 	SwitchAndMerge(ctx context.Context, branch string) error
@@ -133,6 +134,14 @@ func (l *LocalRepo) HasDisabledHost() (bool, error) {
 		return false, err
 	}
 	return config.HasDisabledHost(f)
+}
+
+func (l *LocalRepo) HasPlaintextPassword() (bool, error) {
+	f, err := os.ReadFile(filepath.Join(l.absPath, isucontinuousFilename))
+	if err != nil {
+		return false, err
+	}
+	return config.HasPlaintextPassword(f)
 }
 
 func (l *LocalRepo) CreateFile(name string, data []byte, perm os.FileMode) error {

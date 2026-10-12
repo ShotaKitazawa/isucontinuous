@@ -79,6 +79,11 @@ func runPush(
 				"isucontinuous.yaml has a host with disabled: true on %s: enable all hosts on this branch", currentBranch))
 		}
 	}
+	if plain, err := repo.HasPlaintextPassword(); err != nil {
+		warnings = append(warnings, fmt.Sprintf("could not check for plaintext passwords: %v", err))
+	} else if plain {
+		warnings = append(warnings, "isucontinuous.yaml has a plaintext password: pass it through a template such as {{.Env.X}} or use a key")
+	}
 	return &PushResult{
 		Result: Result{Warnings: warnings},
 		Files:  pushed.Files,

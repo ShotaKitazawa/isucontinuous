@@ -65,5 +65,5 @@ func runProfiling(
 			return nil
 		},
 	}})
-	return &ProfilingResult{Result{Hosts: hosts}}, err
+	return &ProfilingResult{Result{Hosts: hosts, Warnings: isucontinuous.Warnings}}, err
 }

@@ -75,6 +75,7 @@ func runDeploy(
 		return nil, err
 	}
 	result := &DeployResult{Revision: conf.GitRevision, Hash: hash, Message: msg}
+	result.Warnings = isucontinuous.Warnings
 	// Set deployers
 	deployers, err := newDeployersFunc(logger, template.New(conf.GitRevision), conf.LocalRepoPath, isucontinuous.Hosts)
 	if err != nil {

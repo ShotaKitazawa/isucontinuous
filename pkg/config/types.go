@@ -4,6 +4,9 @@ type Config struct {
 	Setup Setup  `yaml:"setup,omitempty"`
 	Slack Slack  `yaml:"slack,omitempty"`
 	Hosts []Host `yaml:"hosts,omitempty"`
+
+	// Warnings is filled by Load and never read from yaml.
+	Warnings []string `yaml:"-"`
 }
 
 func (c Config) IsDockerEnabled() bool {
