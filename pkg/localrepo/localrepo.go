@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v3"
 	kexec "k8s.io/utils/exec"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
@@ -38,6 +37,7 @@ type PushResult struct {
 
 type LocalRepoIface interface {
 	LoadConf() (*config.Config, error)
+	HasDisabledHost() (bool, error)
 	CreateFile(name string, data []byte, perm os.FileMode) error
 	Fetch(ctx context.Context) error
 	SwitchAndMerge(ctx context.Context, branch string) error
@@ -114,12 +114,15 @@ func (l *LocalRepo) LoadConf() (*config.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	conf := &config.Config{}
-	if err := yaml.Unmarshal(f, conf); err != nil {
-		return nil, err
-	}
-	return conf, nil
+	return config.Load(f)
+}
 
+func (l *LocalRepo) HasDisabledHost() (bool, error) {
+	f, err := os.ReadFile(filepath.Join(l.absPath, isucontinuousFilename))
+	if err != nil {
+		return false, err
+	}
+	return config.HasDisabledHost(f)
 }
 
 func (l *LocalRepo) CreateFile(name string, data []byte, perm os.FileMode) error {
