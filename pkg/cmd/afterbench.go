@@ -14,6 +14,7 @@ import (
 	"github.com/ShotaKitazawa/isucontinuous/pkg/slack"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/template"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/afterbench"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/lock"
 )
 
 type ConfigAfterBench struct {
@@ -39,13 +40,13 @@ func RunAfterBench(conf ConfigAfterBench) (*AfterBenchResult, error) {
 		return nil, err
 	}
 	slackClient := slack.NewClient(logger, conf.SlackToken, isucontinuous.Slack.DefaultChannelId)
-	return runAfterBench(conf, ctx, logger, repo, slackClient, afterbench.New)
+	return runAfterBench(conf, ctx, logger, repo, slackClient, afterbench.New, lock.NewLockers)
 }
 
 func runAfterBench(
 	conf ConfigAfterBench, ctx context.Context, logger *zap.Logger,
 	repo localrepo.LocalRepoIface, slackClient slack.ClientIface,
-	newAfterBenchersFunc afterbench.NewFunc,
+	newAfterBenchersFunc afterbench.NewFunc, newLockersFunc lock.NewLockersFunc,
 ) (*AfterBenchResult, error) {
 	logger.Info("start afterbench")
 	defer func() { logger.Info("finish afterbench") }()
@@ -54,24 +55,38 @@ func runAfterBench(
 	if err != nil {
 		return nil, err
 	}
-	// Get revision
-	gitRevision, err := repo.GetRevision(ctx)
+	owner, err := conf.owner()
 	if err != nil {
-		return nil, fmt.Errorf("%s/.revision is not found. exec `deploy` command first", conf.LocalRepoPath)
+		return nil, err
+	}
+	lockers, err := newLockersFunc(logger, isucontinuous.Hosts)
+	if err != nil {
+		return nil, err
+	}
+	locks, err := requireAll(ctx, logger, lockers, isucontinuous.Hosts, owner)
+	if err != nil {
+		return nil, err
 	}
 	// AfterBench files to per host
 	warnings := &warningList{}
 	for _, w := range isucontinuous.Warnings {
 		warnings.Add(w)
 	}
+	baseCtx := ctx
 	hosts, err := perHostExec(logger, ctx, conf.reporter(), isucontinuous.Hosts, []task{{
 		"AfterBench",
-		func(ctx context.Context, host config.Host) error {
+		func(ctx context.Context, host config.Host) (err error) {
+			// a failed host keeps its lock so that afterbench can run again: the logs are cleared by the next deploy
+			defer func() {
+				if err == nil {
+					releaseOwn(baseCtx, logger, lockers[host.Name], owner, host.Name)
+				}
+			}()
 			if host.AfterBench.Target == "" {
 				logger.Debug("skip bacause target is not specified", zap.String("host", host.Name))
 				return nil
 			}
-			afterbencher, err := newAfterBenchersFunc(logger, template.New(gitRevision), slackClient, host)
+			afterbencher, err := newAfterBenchersFunc(logger, template.New(locks[host.Name].Revision), slackClient, host)
 			if err != nil {
 				return err
 			}
@@ -99,10 +114,5 @@ func runAfterBench(
 			}
 			return nil
 		}}})
-	result := &AfterBenchResult{Result{Hosts: hosts, Warnings: warnings.List()}}
-	if err != nil {
-		return result, err
-	}
-	// Clear revision-file
-	return result, repo.ClearRevision(ctx)
+	return &AfterBenchResult{Result{Hosts: hosts, Warnings: warnings.List()}}, err
 }

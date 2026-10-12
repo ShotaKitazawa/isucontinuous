@@ -31,7 +31,12 @@ func New(logger *zap.Logger, templator *template.Templator, host config.Host) (*
 			return nil, err
 		}
 	}
-	return &Profilinger{logger, s, templator}, nil
+	return NewWithShell(logger, s, templator), nil
+}
+
+// NewWithShell builds a Profilinger on an existing shell, which lets callers substitute a fake host.
+func NewWithShell(logger *zap.Logger, s shell.Iface, templator *template.Templator) *Profilinger {
+	return &Profilinger{logger, s, templator}
 }
 
 func (p Profilinger) Profiling(ctx context.Context, command string) error {

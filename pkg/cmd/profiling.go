@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
@@ -11,6 +10,7 @@ import (
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/template"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/lock"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/profiling"
 )
 
@@ -32,12 +32,12 @@ func RunProfiling(conf ConfigProfiling) (*ProfilingResult, error) {
 	}
 	// Set newProfilingersFunc
 
-	return runProfiling(conf, ctx, logger, repo, profiling.New)
+	return runProfiling(conf, ctx, logger, repo, profiling.New, lock.NewLockers)
 }
 
 func runProfiling(
 	conf ConfigProfiling, ctx context.Context, logger *zap.Logger,
-	repo localrepo.LocalRepoIface, newProfilingersFunc profiling.NewFunc,
+	repo localrepo.LocalRepoIface, newProfilingersFunc profiling.NewFunc, newLockersFunc lock.NewLockersFunc,
 ) (*ProfilingResult, error) {
 	logger.Info("start profiling")
 	defer func() { logger.Info("finish profiling") }()
@@ -46,16 +46,24 @@ func runProfiling(
 	if err != nil {
 		return nil, err
 	}
-	// Get revision
-	gitRevision, err := repo.GetRevision(ctx)
+	owner, err := conf.owner()
 	if err != nil {
-		return nil, fmt.Errorf("%s/.revision is not found. exec `deploy` command first", conf.LocalRepoPath)
+		return nil, err
+	}
+	lockers, err := newLockersFunc(logger, isucontinuous.Hosts)
+	if err != nil {
+		return nil, err
+	}
+	// {{.Git.Revision}} is the revision each host was deployed with
+	locks, err := requireAll(ctx, logger, lockers, isucontinuous.Hosts, owner)
+	if err != nil {
+		return nil, err
 	}
 	// Profiling files to per host
 	hosts, err := perHostExec(logger, ctx, conf.reporter(), isucontinuous.Hosts, []task{{
 		"Profiling",
 		func(ctx context.Context, host config.Host) error {
-			profilinger, err := newProfilingersFunc(logger, template.New(gitRevision), host)
+			profilinger, err := newProfilingersFunc(logger, template.New(locks[host.Name].Revision), host)
 			if err != nil {
 				return err
 			}

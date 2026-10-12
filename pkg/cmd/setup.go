@@ -10,6 +10,7 @@ import (
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/install"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/lock"
 )
 
 type ConfigSetup struct {
@@ -29,12 +30,12 @@ func RunSetup(conf ConfigSetup) (*SetupResult, error) {
 		return nil, err
 	}
 	// set installers
-	return runSetup(conf, ctx, logger, repo, install.NewInstallers)
+	return runSetup(conf, ctx, logger, repo, install.NewInstallers, lock.NewLockers)
 }
 
 func runSetup(
 	conf ConfigSetup, ctx context.Context, logger *zap.Logger,
-	repo localrepo.LocalRepoIface, newInstallers install.NewInstallersFunc,
+	repo localrepo.LocalRepoIface, newInstallers install.NewInstallersFunc, newLockersFunc lock.NewLockersFunc,
 ) (*SetupResult, error) {
 	logger.Info("start setup")
 	defer func() { logger.Info("finish setup") }()
@@ -43,6 +44,12 @@ func runSetup(
 	if err != nil {
 		return nil, err
 	}
+	// Setup changes the host, which affects a measurement in progress
+	unlock, err := lockForCommand(ctx, logger, conf.ConfigCommon, repo, newLockersFunc, isucontinuous.Hosts, "setup")
+	if err != nil {
+		return &SetupResult{Result{Warnings: isucontinuous.Warnings}}, err
+	}
+	defer unlock()
 	// Set installers
 	installers, err := newInstallers(logger, isucontinuous.Hosts)
 	if err != nil {

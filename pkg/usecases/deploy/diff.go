@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/hoststate"
@@ -98,4 +99,21 @@ func (d Deployer) Diff(
 		result.Changes = append(result.Changes, change)
 	}
 	return result, nil
+}
+
+// DriftError is returned when files on a host differ from the revision deployed last.
+type DriftError struct {
+	Diffs []HostDiff // only hosts with changes
+}
+
+func (e *DriftError) Error() string {
+	var b strings.Builder
+	b.WriteString("files on hosts differ from the revision deployed last (use --ignore-drift to deploy anyway):")
+	for _, d := range e.Diffs {
+		fmt.Fprintf(&b, "\n  %s (vs %.12s):", d.Host, d.Revision)
+		for _, c := range d.Changes {
+			fmt.Fprintf(&b, "\n    %s: %s", c.Kind, c.Path)
+		}
+	}
+	return b.String()
 }

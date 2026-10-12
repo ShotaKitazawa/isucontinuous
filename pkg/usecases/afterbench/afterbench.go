@@ -36,7 +36,12 @@ func New(logger *zap.Logger, templator *template.Templator, slackClient slack.Cl
 			return nil, err
 		}
 	}
-	return &AfterBencher{logger, s, templator, slackClient}, nil
+	return NewWithShell(logger, s, templator, slackClient), nil
+}
+
+// NewWithShell builds an AfterBencher on an existing shell, which lets callers substitute a fake host.
+func NewWithShell(logger *zap.Logger, s shell.Iface, templator *template.Templator, slackClient slack.ClientIface) *AfterBencher {
+	return &AfterBencher{logger, s, templator, slackClient}
 }
 
 func (p AfterBencher) RunCommand(ctx context.Context, command string) error {

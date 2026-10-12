@@ -18,7 +18,6 @@ import (
 
 const (
 	isucontinuousFilename = "isucontinuous.yaml"
-	revisionStoreFilename = ".revision"
 	defaultCommitMessage  = "commit by isucontinuous"
 	// large files are warned, not blocked: the repository is disposable and GitHub rejects >100MB itself
 	largeFileThreshold = 1 << 20
@@ -48,9 +47,6 @@ type LocalRepoIface interface {
 	IsFirstCommit(ctx context.Context) (bool, error)
 	DiffWithRemote(ctx context.Context) (bool, error)
 	Reset(ctx context.Context) error
-	GetRevision(ctx context.Context) (string, error)
-	SetRevision(ctx context.Context, revision string) error
-	ClearRevision(ctx context.Context) error
 	GetHeadInfo(ctx context.Context) (string, string, error)
 	ResolveRevision(ctx context.Context, revision string) (string, error)
 	ShowFile(ctx context.Context, hash, path string) ([]byte, bool, error)
@@ -100,10 +96,6 @@ func InitLocalRepo(logger *zap.Logger, e kexec.Interface, path, username, email,
 	}
 	// Create isucontinuous.yaml to local-repo.
 	if err := l.CreateFile(isucontinuousFilename, f, 0644); err != nil {
-		return nil, err
-	}
-	// Create .gitignore (.revision is written) to local-repo.
-	if err := l.CreateFile(".gitignore", []byte(revisionStoreFilename), 0644); err != nil {
 		return nil, err
 	}
 	return l, nil
@@ -310,19 +302,6 @@ func (l *LocalRepo) Reset(ctx context.Context) error {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	return nil
-}
-
-func (l *LocalRepo) GetRevision(ctx context.Context) (string, error) {
-	b, err := os.ReadFile(filepath.Join(l.absPath, revisionStoreFilename))
-	return string(b), err
-}
-
-func (l *LocalRepo) SetRevision(ctx context.Context, revision string) error {
-	return os.WriteFile(filepath.Join(l.absPath, revisionStoreFilename), []byte(revision), 0644)
-}
-
-func (l *LocalRepo) ClearRevision(ctx context.Context) error {
-	return os.Remove(filepath.Join(l.absPath, revisionStoreFilename))
 }
 
 func (l *LocalRepo) GetHeadInfo(ctx context.Context) (string, string, error) {

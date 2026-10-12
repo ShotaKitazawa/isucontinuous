@@ -25,6 +25,7 @@ var deployCmd = &cobra.Command{
 			},
 			GitRevision: deployGitRevision,
 			Force:       deployForce,
+			IgnoreDrift: deployIgnoreDrift,
 			SlackToken:  deploySlackToken,
 		}
 		r, err := cmd.RunDeploy(conf)
@@ -39,6 +40,7 @@ var deployCmd = &cobra.Command{
 var (
 	deployGitRevision string
 	deployForce       bool
+	deployIgnoreDrift bool
 	deploySlackToken  string
 )
 
@@ -47,7 +49,9 @@ func init() {
 	deployCmd.PersistentFlags().StringVarP(&deployGitRevision, "revision", "b", "master",
 		"branch-name, tag-name, or commit-hash of deployed from Git remote-repo")
 	deployCmd.PersistentFlags().BoolVarP(&deployForce, "force", "f", false,
-		"force deploy")
+		"take over host locks held by someone else (check with the holder first)")
+	deployCmd.PersistentFlags().BoolVar(&deployIgnoreDrift, "ignore-drift", false,
+		"deploy even if files on hosts differ from the revision deployed last")
 	deployCmd.PersistentFlags().StringVarP(&deploySlackToken, "slack-token", "t", getenvDefault("slack-token", ""),
 		"slack token of workspace where deployment notification will be sent")
 	setRequired(deployCmd, "slack-token")
