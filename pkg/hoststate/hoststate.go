@@ -19,6 +19,12 @@ const (
 	LastRevisionFilename = "last-revision"
 )
 
+const (
+	mkdirAndWriteFmt = `mkdir -p %s && printf '%%s\n' %s > %s`
+	removeFileFmt    = `rm -f %s`
+	readLastFmt      = `cat %s 2>/dev/null || cat %s 2>/dev/null || true`
+)
+
 var commitHashPattern = regexp.MustCompile(`^[0-9a-f]{7,64}$`)
 
 func lastRevisionPaths() (primary, fallback string) {
@@ -31,12 +37,12 @@ func WriteLastRevision(ctx context.Context, sh shell.Iface, hash string) error {
 		return fmt.Errorf("invalid commit hash: %q", hash)
 	}
 	primary, fallback := lastRevisionPaths()
-	if _, _, err := sh.Execf(ctx, "", `mkdir -p %s && printf '%%s\n' %s > %s`,
+	if _, _, err := sh.Execf(ctx, "", mkdirAndWriteFmt,
 		shell.Quote(DirPrimary), hash, shell.Quote(primary)); err == nil {
-		_, _, _ = sh.Execf(ctx, "", `rm -f %s`, shell.Quote(fallback))
+		_, _, _ = sh.Execf(ctx, "", removeFileFmt, shell.Quote(fallback))
 		return nil
 	}
-	if _, stderr, err := sh.Execf(ctx, "", `mkdir -p %s && printf '%%s\n' %s > %s`,
+	if _, stderr, err := sh.Execf(ctx, "", mkdirAndWriteFmt,
 		shell.Quote(DirFallback), hash, shell.Quote(fallback)); err != nil {
 		return fmt.Errorf("failed to record the last deployed revision: %s", strings.TrimSpace(stderr.String()))
 	}
@@ -46,7 +52,7 @@ func WriteLastRevision(ctx context.Context, sh shell.Iface, hash string) error {
 // ReadLastRevision returns the commit hash recorded by WriteLastRevision; found is false if nothing is recorded.
 func ReadLastRevision(ctx context.Context, sh shell.Iface) (hash string, found bool, err error) {
 	primary, fallback := lastRevisionPaths()
-	stdout, _, err := sh.Execf(ctx, "", `cat %s 2>/dev/null || cat %s 2>/dev/null || true`,
+	stdout, _, err := sh.Execf(ctx, "", readLastFmt,
 		shell.Quote(primary), shell.Quote(fallback))
 	if err != nil {
 		return "", false, err
