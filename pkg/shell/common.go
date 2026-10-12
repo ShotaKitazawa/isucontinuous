@@ -10,6 +10,7 @@ type Iface interface {
 	Exec(ctx context.Context, basedir string, command string) (bytes.Buffer, bytes.Buffer, error)
 	Execf(ctx context.Context, basedir string, command string, a ...interface{}) (bytes.Buffer, bytes.Buffer, error)
 	Deploy(ctx context.Context, src, dst string) error
+	ReadFile(ctx context.Context, path string) ([]byte, error)
 }
 
 func trimNewLine(buf bytes.Buffer) bytes.Buffer {
