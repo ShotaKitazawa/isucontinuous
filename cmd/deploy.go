@@ -11,9 +11,6 @@ import (
 var deployCmd = &cobra.Command{
 	Use:   "deploy",
 	Short: "Deploy files from specified revision",
-	PreRunE: func(cmd *cobra.Command, args []string) error {
-		return checkRequiredFlags(cmd.Flags())
-	},
 	RunE: func(c *cobra.Command, args []string) error {
 		executed = true
 		conf := cmd.ConfigDeploy{
@@ -53,6 +50,5 @@ func init() {
 	deployCmd.PersistentFlags().BoolVar(&deployIgnoreDrift, "ignore-drift", false,
 		"deploy even if files on hosts differ from the revision deployed last")
 	deployCmd.PersistentFlags().StringVarP(&deploySlackToken, "slack-token", "t", getenvDefault("slack-token", ""),
-		"slack token of workspace where deployment notification will be sent")
-	setRequired(deployCmd, "slack-token")
+		"slack token of workspace where deployment notification will be sent (used only when slack.default_channel_id is set)")
 }

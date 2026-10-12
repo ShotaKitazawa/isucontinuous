@@ -11,7 +11,6 @@ import (
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
-	"github.com/ShotaKitazawa/isucontinuous/pkg/slack"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/template"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/afterbench"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/lock"
@@ -39,18 +38,12 @@ func RunAfterBench(conf ConfigAfterBench) (*AfterBenchResult, error) {
 		return nil, err
 	}
 	defer unlock()
-	// load isucontinuous.yaml
-	isucontinuous, err := repo.LoadConf()
-	if err != nil {
-		return nil, err
-	}
-	slackClient := slack.NewClient(logger, conf.SlackToken, isucontinuous.Slack.DefaultChannelId)
-	return runAfterBench(conf, ctx, logger, repo, slackClient, afterbench.New, lock.NewLockers)
+	return runAfterBench(conf, ctx, logger, repo, realSlackClient(logger, conf.SlackToken), afterbench.New, lock.NewLockers)
 }
 
 func runAfterBench(
 	conf ConfigAfterBench, ctx context.Context, logger *zap.Logger,
-	repo localrepo.LocalRepoIface, slackClient slack.ClientIface,
+	repo localrepo.LocalRepoIface, newSlackClient newSlackClientFunc,
 	newAfterBenchersFunc afterbench.NewFunc, newLockersFunc lock.NewLockersFunc,
 ) (*AfterBenchResult, error) {
 	logger.Info("start afterbench")
@@ -80,6 +73,7 @@ func runAfterBench(
 	for _, w := range isucontinuous.Warnings {
 		warnings.Add(w)
 	}
+	slackClient := slackNotifier(logger, isucontinuous, newSlackClient, warnings)
 	baseCtx := ctx
 	hosts, err := perHostExec(logger, ctx, conf.reporter(), isucontinuous.Hosts, []task{{
 		"AfterBench",

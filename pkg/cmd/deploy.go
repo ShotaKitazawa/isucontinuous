@@ -13,7 +13,6 @@ import (
 	"github.com/ShotaKitazawa/isucontinuous/pkg/hoststate"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
-	"github.com/ShotaKitazawa/isucontinuous/pkg/slack"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/template"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/deploy"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/lock"
@@ -46,15 +45,12 @@ func RunDeploy(conf ConfigDeploy) (*DeployResult, error) {
 		return nil, err
 	}
 	defer unlock()
-	newSlackClient := func(c *config.Config) slack.ClientIface {
-		return slack.NewClient(logger, conf.SlackToken, c.Slack.DefaultChannelId)
-	}
-	return runDeploy(conf, ctx, logger, repo, newSlackClient, deploy.NewDeployers, lock.NewLockers)
+	return runDeploy(conf, ctx, logger, repo, realSlackClient(logger, conf.SlackToken), deploy.NewDeployers, lock.NewLockers)
 }
 
 func runDeploy(
 	conf ConfigDeploy, ctx context.Context, logger *zap.Logger,
-	repo localrepo.LocalRepoIface, newSlackClient func(*config.Config) slack.ClientIface,
+	repo localrepo.LocalRepoIface, newSlackClient newSlackClientFunc,
 	newDeployersFunc deploy.NewDeployersFunc, newLockersFunc lock.NewLockersFunc,
 ) (*DeployResult, error) {
 	logger.Info("start deploy")
@@ -79,7 +75,11 @@ func runDeploy(
 	if err != nil {
 		return nil, err
 	}
-	slackClient := newSlackClient(isucontinuous)
+	warnings := &warningList{}
+	for _, w := range isucontinuous.Warnings {
+		warnings.Add(w)
+	}
+	slackClient := slackNotifier(logger, isucontinuous, newSlackClient, warnings)
 	// Everything below uses the resolved commit hash: a branch name can point to another commit after the next push
 	head, err := repo.GetHeadCommit(ctx)
 	if err != nil {
@@ -87,7 +87,7 @@ func runDeploy(
 	}
 	hash := head.Hash
 	result := &DeployResult{Revision: conf.GitRevision, Hash: hash, Message: head.Message, Date: head.Date}
-	result.Warnings = isucontinuous.Warnings
+	defer func() { result.Warnings = warnings.List() }()
 	owner, err := conf.owner()
 	if err != nil {
 		return result, err
@@ -125,10 +125,8 @@ func runDeploy(
 				}
 			}()
 			// Notify to Slack
-			if err := slackClient.SendText(ctx, host.Deploy.SlackChannelId,
-				fmt.Sprintf("*<%s> deploying to %s...*", conf.GitRevision, host.Name)); err != nil {
-				return err
-			}
+			_ = slackClient.SendText(ctx, host.Deploy.SlackChannelId,
+				fmt.Sprintf("*<%s> deploying to %s...*", conf.GitRevision, host.Name))
 			defer func() {
 				if err != nil {
 					_ = slackClient.SendText(ctx, host.Deploy.SlackChannelId,

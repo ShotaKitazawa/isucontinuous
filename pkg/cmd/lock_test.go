@@ -132,7 +132,7 @@ func (e *lockEnv) deploy(conf ConfigDeploy) (*DeployResult, error) {
 		}
 		return m, nil
 	}
-	newSlack := func(*config.Config) slack.ClientIface { return slack.NewFakeClient(zap.NewNop()) }
+	newSlack := func(*config.Config) (slack.ClientIface, error) { return slack.NewFakeClient(zap.NewNop()), nil }
 	return runDeploy(conf, context.Background(), zaptest.NewLogger(e.t), e.repo, newSlack, newDeployers, lockersWith(e.shells))
 }
 
@@ -329,7 +329,7 @@ func (e *lockEnv) afterbench() (*AfterBenchResult, error) {
 		return afterbench.NewWithShell(l, e.shells[host.Name], t, s), nil
 	}
 	return runAfterBench(ConfigAfterBench{ConfigCommon: e.common()}, context.Background(), zaptest.NewLogger(e.t),
-		e.repo, slack.NewFakeClient(zap.NewNop()), newAfterBenchers, lockersWith(e.shells))
+		e.repo, func(*config.Config) (slack.ClientIface, error) { return slack.NewFakeClient(zap.NewNop()), nil }, newAfterBenchers, lockersWith(e.shells))
 }
 
 func TestRunAfterBench(t *testing.T) {
