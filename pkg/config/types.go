@@ -63,7 +63,7 @@ type Slack struct {
 
 type Host struct {
 	Host       string     `yaml:"host,omitempty"`
-	Port       int        `yaml:"int,omitempty"`
+	Port       int        `yaml:"port,omitempty"`
 	User       string     `yaml:"user,omitempty"`
 	Key        string     `yaml:"key,omitempty"`
 	Password   string     `yaml:"password,omitempty"`
