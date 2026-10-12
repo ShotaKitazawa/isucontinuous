@@ -75,6 +75,11 @@ func runAfterBench(
 	}
 	slackClient := slackNotifier(logger, isucontinuous, newSlackClient, warnings)
 	baseCtx := ctx
+	perHost := make([][]Artifact, len(isucontinuous.Hosts))
+	hostIndex := make(map[string]int, len(isucontinuous.Hosts))
+	for idx, host := range isucontinuous.Hosts {
+		hostIndex[host.Name] = idx
+	}
 	hosts, err := perHostExec(logger, ctx, conf.reporter(), isucontinuous.Hosts, []task{{
 		"AfterBench",
 		func(ctx context.Context, host config.Host) (err error) {
@@ -99,10 +104,16 @@ func runAfterBench(
 			// cleanup location of profile data
 			defer func() {
 				suffix := fmt.Sprintf("%d", time.Now().Unix())
-				if err := afterbencher.CleanUp(ctx, host.AfterBench.Target, suffix); err != nil {
+				moved, err := afterbencher.CleanUp(ctx, host.AfterBench.Target, suffix)
+				if err != nil {
 					msg := fmt.Sprintf("[%s] failed to cleanup: %v", host.Name, err)
 					logger.Error(msg, zap.String("host", host.Name))
 					warnings.Add(msg)
+				}
+				// the paths reported are those on the server after the move; without it they stay where they were written
+				for idx := range perHost[hostIndex[host.Name]] {
+					a := &perHost[hostIndex[host.Name]][idx]
+					a.Path = moved.Path(a.Path)
 				}
 			}()
 
@@ -111,10 +122,16 @@ func runAfterBench(
 				return err
 			}
 			// post profile data to Slack
-			if err := afterbencher.PostToSlack(ctx, host.AfterBench.Target, host.AfterBench.SlackChannelId); err != nil {
-				return err
+			artifacts, err := afterbencher.PostToSlack(ctx, host.AfterBench.Target, host.AfterBench.SlackChannelId)
+			for _, a := range artifacts {
+				perHost[hostIndex[host.Name]] = append(perHost[hostIndex[host.Name]],
+					Artifact{Host: host.Name, Path: a.Path, Size: len(a.Content), Content: a.Content})
 			}
-			return nil
+			return err
 		}}})
-	return &AfterBenchResult{Result{Hosts: hosts, Warnings: warnings.List()}}, err
+	result := &AfterBenchResult{Result: Result{Hosts: hosts, Warnings: warnings.List()}}
+	for _, as := range perHost {
+		result.Artifacts = append(result.Artifacts, as...)
+	}
+	return result, err
 }
