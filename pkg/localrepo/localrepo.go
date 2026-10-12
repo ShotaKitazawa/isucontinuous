@@ -60,7 +60,7 @@ type LocalRepo struct {
 	absPath string
 }
 
-func InitLocalRepo(logger *zap.Logger, e kexec.Interface, path, username, email, remoteUrl string) (*LocalRepo, error) {
+func InitLocalRepo(logger *zap.Logger, e kexec.Interface, path, username, email, remoteUrl, sshKey string) (*LocalRepo, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -79,6 +79,16 @@ func InitLocalRepo(logger *zap.Logger, e kexec.Interface, path, username, email,
 	}
 	if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git remote add origin "%s"`, remoteUrl); err != nil {
 		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	if sshKey != "" {
+		// git runs core.sshCommand through a shell, so the path is single-quoted instead of escaped
+		if strings.ContainsAny(sshKey, "'\n") {
+			return nil, fmt.Errorf("ssh key path must not contain a single quote or newline: %q", sshKey)
+		}
+		sshCommand := fmt.Sprintf("ssh -i '%s' -o IdentitiesOnly=yes", sshKey)
+		if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "config", "core.sshCommand", sshCommand); err != nil {
+			return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		}
 	}
 	// Generate from skelton
 	f, err := config.SkeltonBytes()

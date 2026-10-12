@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"go.uber.org/zap/zaptest"
@@ -257,5 +258,29 @@ func TestLocalRepo_LoadConf(t *testing.T) {
 	}
 	if ok, err := repo.HasDisabledHost(); err != nil || !ok {
 		t.Errorf("HasDisabledHost = %v, %v; want true", ok, err)
+	}
+}
+
+func TestInitLocalRepo_SshCommand(t *testing.T) {
+	for _, c := range []struct{ key, want string }{
+		{"/keys/deploy key", "ssh -i '/keys/deploy key' -o IdentitiesOnly=yes"},
+		{"", ""},
+	} {
+		dir := filepath.Join(t.TempDir(), "repo")
+		if err := os.Mkdir(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := InitLocalRepo(zaptest.NewLogger(t), kexec.New(), dir, "u", "u@example.com", "git@example.com:a/b.git", c.key); err != nil {
+			t.Fatal(err)
+		}
+		out, _ := exec.Command("git", "-C", dir, "config", "--local", "--get", "core.sshCommand").Output()
+		if got := strings.TrimSpace(string(out)); got != c.want {
+			t.Errorf("key=%q: core.sshCommand = %q, want %q", c.key, got, c.want)
+		}
+	}
+	dir := filepath.Join(t.TempDir(), "repo")
+	os.Mkdir(dir, 0755)
+	if _, err := InitLocalRepo(zaptest.NewLogger(t), kexec.New(), dir, "u", "e", "r", "/a'b"); err == nil {
+		t.Error("a key path with a single quote must be rejected")
 	}
 }
