@@ -56,18 +56,18 @@ func runImport(
 	hosts, err := perHostExec(logger, ctx, conf.reporter(), isucontinuous.Hosts, []task{{
 		"Import",
 		func(ctx context.Context, host config.Host) error {
-			importer := importers[host.Host]
+			importer := importers[host.Name]
 			for _, target := range host.ListTarget() {
 				switch importer.FileType(ctx, target.Target) {
 				case imports.IsNotFound:
-					logger.Info(fmt.Sprintf("%s is not found: skip", target.Target), zap.String("host", host.Host))
+					logger.Info(fmt.Sprintf("%s is not found: skip", target.Target), zap.String("host", host.Name))
 					continue
 				case imports.IsFile:
 					content, mode, err := importer.GetFileContent(ctx, target.Target)
 					if err != nil {
 						return err
 					}
-					if err := repo.CreateFile(filepath.Join(host.Host, target.Src), content, mode); err != nil {
+					if err := repo.CreateFile(filepath.Join(host.Name, target.Src), content, mode); err != nil {
 						return err
 					}
 				case imports.IsDirectory:
@@ -82,7 +82,7 @@ func runImport(
 						if err != nil {
 							return err
 						}
-						if err := repo.CreateFile(filepath.Join(host.Host, target.Src, file), content, mode); err != nil {
+						if err := repo.CreateFile(filepath.Join(host.Name, target.Src, file), content, mode); err != nil {
 							return err
 						}
 					}

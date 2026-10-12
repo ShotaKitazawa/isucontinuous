@@ -49,7 +49,7 @@ func runSetup(
 	hosts, err := perHostExec(logger, ctx, conf.reporter(), isucontinuous.Hosts, []task{{
 		"Install Docker",
 		func(ctx context.Context, host config.Host) error {
-			installer := installers[host.Host]
+			installer := installers[host.Name]
 			// install docker
 			if isucontinuous.IsDockerEnabled() {
 				if err := installer.Docker(ctx); err != nil {
@@ -61,7 +61,7 @@ func runSetup(
 	}, {
 		"Install netdata",
 		func(ctx context.Context, host config.Host) error {
-			installer := installers[host.Host]
+			installer := installers[host.Name]
 			if ok, version, publicPort := isucontinuous.IsNetdataEnabled(); isucontinuous.IsDockerEnabled() && ok {
 				if err := installer.Netdata(ctx, version, publicPort); err != nil {
 					return err
@@ -72,7 +72,7 @@ func runSetup(
 	}, {
 		"Install alp",
 		func(ctx context.Context, host config.Host) error {
-			installer := installers[host.Host]
+			installer := installers[host.Name]
 			if ok, version := isucontinuous.IsAlpEnabled(); ok {
 				if err := installer.Alp(ctx, version); err != nil {
 					return err

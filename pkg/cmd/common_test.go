@@ -14,7 +14,7 @@ import (
 
 func TestPerHostExec(t *testing.T) {
 	ctx := context.Background()
-	hosts := []config.Host{{Host: "host01"}}
+	hosts := []config.Host{{Name: "host01"}}
 	ok := func(ctx context.Context, host config.Host) error { return nil }
 	detached := myerrors.NewErrorGitBranchIsDetached()
 
