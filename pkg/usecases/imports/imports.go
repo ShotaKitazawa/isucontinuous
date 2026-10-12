@@ -73,11 +73,19 @@ func (l *Importer) GetFileContent(ctx context.Context, path string) ([]byte, os.
 	if err != nil {
 		return nil, 0, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	mode, err := strconv.Atoi(stdout.String())
+	mode, err := parseFileMode(stdout.String())
 	if err != nil {
 		return nil, 0, err
 	}
-	return content, os.FileMode(mode), nil
+	return content, mode, nil
+}
+
+func parseFileMode(s string) (os.FileMode, error) {
+	mode, err := strconv.ParseUint(strings.TrimSpace(s), 8, 32)
+	if err != nil {
+		return 0, err
+	}
+	return os.FileMode(mode), nil
 }
 
 func (l *Importer) ListUntrackedFiles(ctx context.Context, path string) ([]string, error) {
