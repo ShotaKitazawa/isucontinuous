@@ -31,3 +31,29 @@ func printPushResult(w io.Writer, r *cmd.PushResult) {
 		}
 	}
 }
+
+func printDiffResult(w io.Writer, r *cmd.DiffResult, showDiff bool) {
+	if r == nil {
+		return
+	}
+	for _, h := range r.Diffs {
+		switch {
+		case h.NoRecord:
+			fmt.Fprintf(w, "%s: no record of the last deployed revision, nothing to compare\n", h.Host)
+			continue
+		case len(h.Changes) == 0:
+			fmt.Fprintf(w, "%s: no difference from %.12s\n", h.Host, h.Revision)
+		default:
+			fmt.Fprintf(w, "%s: %d file(s) differ from %.12s\n", h.Host, len(h.Changes), h.Revision)
+		}
+		for _, c := range h.Changes {
+			fmt.Fprintf(w, "  %s: %s\n", c.Kind, c.Path)
+			if showDiff {
+				fmt.Fprint(w, c.Diff)
+			}
+		}
+		for _, p := range h.Skipped {
+			fmt.Fprintf(w, "  skipped (not in the revision): %s\n", p)
+		}
+	}
+}

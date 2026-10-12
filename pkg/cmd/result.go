@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/deploy"
 )
 
 type HostResult struct {
@@ -33,6 +34,11 @@ type DeployResult struct {
 	Revision string
 	Hash     string
 	Message  string
+}
+
+type DiffResult struct {
+	Result
+	Diffs []deploy.HostDiff
 }
 
 type PushResult struct {

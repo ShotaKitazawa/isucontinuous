@@ -48,6 +48,11 @@ func NewDeployers(
 	return deployers, nil
 }
 
+// NewWithShell builds a Deployer on an existing shell, which lets callers substitute a fake host.
+func NewWithShell(logger *zap.Logger, s shell.Iface, templator *template.Templator, localRepoPath string) *Deployer {
+	return new(logger, s, templator, localRepoPath)
+}
+
 func new(logger *zap.Logger, s shell.Iface, templator *template.Templator, localRepoPath string) *Deployer {
 	return &Deployer{logger, s, templator, localRepoPath}
 }
