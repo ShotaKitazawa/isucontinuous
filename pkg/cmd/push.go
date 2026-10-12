@@ -14,6 +14,7 @@ import (
 type ConfigPush struct {
 	ConfigCommon
 	GitBranch string
+	Message   string
 }
 
 func RunPush(conf ConfigPush) error {
@@ -65,8 +66,19 @@ func runPush(
 		return fmt.Errorf("there are differences between %s and remotes/origin/%s", conf.GitBranch, conf.GitBranch)
 	}
 	// Execute add, commit, and push
-	if err := repo.Push(ctx); err != nil {
+	result, err := repo.Push(ctx, conf.Message)
+	if err != nil {
 		return err
+	}
+	for _, f := range result.Files {
+		if f.Deleted {
+			fmt.Printf("committed: %s (deleted)\n", f.Path)
+		} else {
+			fmt.Printf("committed: %s (%d bytes)\n", f.Path, f.Size)
+		}
+	}
+	for _, w := range result.Warnings {
+		fmt.Printf("warning: %s\n", w)
 	}
 	return nil
 }

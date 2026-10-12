@@ -143,3 +143,97 @@ func TestLocalRepo_SwitchDetachedBranch(t *testing.T) {
 		t.Error("expected an error for an unknown revision")
 	}
 }
+
+func TestLocalRepo_Push(t *testing.T) {
+	ctx := context.Background()
+	t.Run("no changes", func(t *testing.T) {
+		repo, _, _ := newTestRepo(t)
+		result, err := repo.Push(ctx, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Files) != 0 || len(result.Warnings) != 0 {
+			t.Errorf("unexpected result: %+v", result)
+		}
+	})
+	t.Run("commit message and files", func(t *testing.T) {
+		repo, work, remote := newTestRepo(t)
+		if err := os.WriteFile(filepath.Join(work, "b.txt"), []byte("hello"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Remove(filepath.Join(work, "a.txt")); err != nil {
+			t.Fatal(err)
+		}
+		msg := "it's \"quoted\" $(touch pwned)\nsecond line"
+		result, err := repo.Push(ctx, msg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []PushedFile{{Path: "a.txt", Deleted: true}, {Path: "b.txt", Size: 5}}
+		if len(result.Files) != len(want) {
+			t.Fatalf("Files = %+v, want %+v", result.Files, want)
+		}
+		for i := range want {
+			if result.Files[i] != want[i] {
+				t.Errorf("Files[%d] = %+v, want %+v", i, result.Files[i], want[i])
+			}
+		}
+		if got := runGit(t, remote, "log", "-1", "--format=%B", "master"); got != msg+"\n\n" {
+			t.Errorf("commit message = %q, want %q", got, msg+"\n\n")
+		}
+		if _, err := os.Stat(filepath.Join(work, "pwned")); err == nil {
+			t.Error("message was executed as shell")
+		}
+	})
+	t.Run("default message", func(t *testing.T) {
+		repo, work, remote := newTestRepo(t)
+		if err := os.WriteFile(filepath.Join(work, "b.txt"), []byte("x"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := repo.Push(ctx, ""); err != nil {
+			t.Fatal(err)
+		}
+		if got := runGit(t, remote, "log", "-1", "--format=%s", "master"); got != "commit by isucontinuous\n" {
+			t.Errorf("commit message = %q", got)
+		}
+	})
+	t.Run("large file warning", func(t *testing.T) {
+		repo, work, _ := newTestRepo(t)
+		if err := os.WriteFile(filepath.Join(work, "big.bin"), make([]byte, 1<<20), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(work, "small.txt"), []byte("x"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		result, err := repo.Push(ctx, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Warnings) != 1 {
+			t.Errorf("Warnings = %v, want 1 warning", result.Warnings)
+		}
+	})
+	t.Run("push failure is returned", func(t *testing.T) {
+		repo, work, _ := newTestRepo(t)
+		runGit(t, work, "remote", "set-url", "origin", filepath.Join(work, "no-such-remote"))
+		if err := os.WriteFile(filepath.Join(work, "b.txt"), []byte("x"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := repo.Push(ctx, ""); err == nil {
+			t.Error("expected an error when git push fails")
+		}
+	})
+	t.Run("commit failure is returned", func(t *testing.T) {
+		repo, work, _ := newTestRepo(t)
+		hook := filepath.Join(work, ".git", "hooks", "pre-commit")
+		if err := os.WriteFile(hook, []byte("#!/bin/sh\nexit 1\n"), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(work, "b.txt"), []byte("x"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := repo.Push(ctx, ""); err == nil {
+			t.Error("expected an error when git commit fails")
+		}
+	})
+}

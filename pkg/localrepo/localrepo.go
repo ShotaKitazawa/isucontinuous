@@ -10,7 +10,7 @@ import (
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
-	"k8s.io/utils/exec"
+	kexec "k8s.io/utils/exec"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
@@ -20,7 +20,21 @@ import (
 const (
 	isucontinuousFilename = "isucontinuous.yaml"
 	revisionStoreFilename = ".revision"
+	defaultCommitMessage  = "commit by isucontinuous"
+	// large files are warned, not blocked: the repository is disposable and GitHub rejects >100MB itself
+	largeFileThreshold = 1 << 20
 )
+
+type PushedFile struct {
+	Path    string
+	Size    int64
+	Deleted bool
+}
+
+type PushResult struct {
+	Files    []PushedFile
+	Warnings []string
+}
 
 type LocalRepoIface interface {
 	LoadConf() (*config.Config, error)
@@ -28,7 +42,7 @@ type LocalRepoIface interface {
 	Fetch(ctx context.Context) error
 	SwitchAndMerge(ctx context.Context, branch string) error
 	SwitchDetachedBranch(ctx context.Context, revision string) error
-	Push(ctx context.Context) error
+	Push(ctx context.Context, message string) (*PushResult, error)
 	CurrentBranch(ctx context.Context) (string, error)
 	IsFirstCommit(ctx context.Context) (bool, error)
 	DiffWithRemote(ctx context.Context) (bool, error)
@@ -46,7 +60,7 @@ type LocalRepo struct {
 	absPath string
 }
 
-func InitLocalRepo(logger *zap.Logger, e exec.Interface, path, username, email, remoteUrl string) (*LocalRepo, error) {
+func InitLocalRepo(logger *zap.Logger, e kexec.Interface, path, username, email, remoteUrl string) (*LocalRepo, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -82,7 +96,7 @@ func InitLocalRepo(logger *zap.Logger, e exec.Interface, path, username, email, 
 	return l, nil
 }
 
-func AttachLocalRepo(logger *zap.Logger, e exec.Interface, path string) (*LocalRepo, error) {
+func AttachLocalRepo(logger *zap.Logger, e kexec.Interface, path string) (*LocalRepo, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -168,17 +182,62 @@ func (l *LocalRepo) SwitchDetachedBranch(ctx context.Context, revision string) e
 	return nil
 }
 
-func (l *LocalRepo) Push(ctx context.Context) error {
+func (l *LocalRepo) Push(ctx context.Context, message string) (*PushResult, error) {
+	if message == "" {
+		message = defaultCommitMessage
+	}
+	result := &PushResult{}
 	if _, stderr, err := l.shell.Exec(ctx, l.absPath, `git add -A`); err != nil {
-		return myerrors.NewErrorCommandExecutionFailed(stderr)
+		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	if _, _, err := l.shell.Exec(ctx, l.absPath, `git commit -m "commit by isucontinuous"`); err != nil {
-		l.log.Info("failed `git commit`: no commit files")
+	// exit status 1 means that there are staged changes
+	_, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "diff", "--cached", "--quiet")
+	var exitErr kexec.ExitError
+	if err != nil {
+		if !errors.As(err, &exitErr) || exitErr.ExitStatus() != 1 {
+			return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		}
+		files, err := l.stagedFiles(ctx)
+		if err != nil {
+			return nil, err
+		}
+		result.Files = files
+		for _, f := range files {
+			if f.Size >= largeFileThreshold {
+				result.Warnings = append(result.Warnings,
+					fmt.Sprintf("%s is large (%d bytes)", f.Path, f.Size))
+			}
+		}
+		if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "commit", "-m", message); err != nil {
+			return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		}
 	}
-	if _, _, err := l.shell.Exec(ctx, l.absPath, `git push origin HEAD`); err != nil {
-		l.log.Info("failed `git push`: no push commits")
+	if _, stderr, err := l.shell.Exec(ctx, l.absPath, `git push origin HEAD`); err != nil {
+		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	return nil
+	return result, nil
+}
+
+func (l *LocalRepo) stagedFiles(ctx context.Context) ([]PushedFile, error) {
+	stdout, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "diff", "--cached", "--name-only", "-z")
+	if err != nil {
+		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	files := []PushedFile{}
+	for _, name := range strings.Split(stdout.String(), "\x00") {
+		if name == "" {
+			continue
+		}
+		info, err := os.Stat(filepath.Join(l.absPath, name))
+		if os.IsNotExist(err) {
+			files = append(files, PushedFile{Path: name, Deleted: true})
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+		files = append(files, PushedFile{Path: name, Size: info.Size()})
+	}
+	return files, nil
 }
 
 func (l *LocalRepo) CurrentBranch(ctx context.Context) (string, error) {
