@@ -34,7 +34,7 @@ func NewDeployers(
 	var err error
 	for _, host := range hosts {
 		var s shell.Iface
-		if host.IsLocal() {
+		if host.Local {
 			s = shell.NewLocalClient(exec.New())
 		} else {
 			s, err = shell.NewSshClient(host.Host, host.Port, host.User, host.Password, host.Key)

@@ -23,7 +23,7 @@ type NewFunc func(*zap.Logger, *template.Templator, config.Host) (*Profilinger, 
 func New(logger *zap.Logger, templator *template.Templator, host config.Host) (*Profilinger, error) {
 	var err error
 	var s shell.Iface
-	if host.IsLocal() {
+	if host.Local {
 		s = shell.NewLocalClient(exec.New())
 	} else {
 		s, err = shell.NewSshClient(host.Host, host.Port, host.User, host.Password, host.Key)

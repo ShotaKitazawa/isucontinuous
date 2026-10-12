@@ -33,6 +33,15 @@ func New(gitRevision string) *Templator {
 }
 
 func (t Templator) Exec(text string) (string, error) {
+	return exec(text, t)
+}
+
+// ExecEnv exposes only .Env so that connection settings cannot depend on the revision.
+func (t Templator) ExecEnv(text string) (string, error) {
+	return exec(text, struct{ Env map[string]string }{t.Env})
+}
+
+func exec(text string, data interface{}) (string, error) {
 	if text == "" {
 		return "", nil
 	}
@@ -42,7 +51,7 @@ func (t Templator) Exec(text string) (string, error) {
 		return "", fmt.Errorf("Error to parse template: %w", err)
 	}
 	val := bytes.Buffer{}
-	if err := tmpl.Execute(&val, t); err != nil {
+	if err := tmpl.Execute(&val, data); err != nil {
 		return "", fmt.Errorf("Error to parse template: %w", err)
 	}
 	return val.String(), nil

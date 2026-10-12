@@ -62,18 +62,18 @@ type Slack struct {
 }
 
 type Host struct {
+	Name       string     `yaml:"name,omitempty"`
 	Host       string     `yaml:"host,omitempty"`
-	Port       int        `yaml:"port,omitempty"`
+	Local      bool       `yaml:"local,omitempty"`
+	Disabled   bool       `yaml:"disabled,omitempty"`
+	PortExpr   string     `yaml:"port,omitempty"`
+	Port       int        `yaml:"-"`
 	User       string     `yaml:"user,omitempty"`
 	Key        string     `yaml:"key,omitempty"`
 	Password   string     `yaml:"password,omitempty"`
 	Deploy     Deploy     `yaml:"deploy,omitempty"`
 	Profiling  Profiling  `yaml:"profiling,omitempty"`
 	AfterBench AfterBench `yaml:"after_bench,omitempty"`
-}
-
-func (c Host) IsLocal() bool {
-	return c.Host == "localhost" || c.Host == "127.0.0.1"
 }
 
 func (c Host) ListTarget() []DeployTarget {
