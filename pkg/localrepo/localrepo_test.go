@@ -284,3 +284,47 @@ func TestInitLocalRepo_SshCommand(t *testing.T) {
 		t.Error("a key path with a single quote must be rejected")
 	}
 }
+
+func TestLocalRepo_ResolveRevisionAndShowFile(t *testing.T) {
+	ctx := context.Background()
+	repo, work, _ := newTestRepo(t)
+	first := strings.TrimSpace(runGit(t, work, "rev-parse", "HEAD"))
+	if err := os.WriteFile(filepath.Join(work, "a.txt"), []byte("a2\n\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, work, "commit", "-am", "second")
+	runGit(t, work, "push", "origin", "master")
+	second := strings.TrimSpace(runGit(t, work, "rev-parse", "HEAD"))
+
+	for _, rev := range []string{first, "master"} {
+		want := first
+		if rev == "master" {
+			want = second
+		}
+		got, err := repo.ResolveRevision(ctx, rev)
+		if err != nil || got != want {
+			t.Errorf("ResolveRevision(%q) = %q, %v; want %q", rev, got, err, want)
+		}
+	}
+	if _, err := repo.ResolveRevision(ctx, "no-such-revision"); err == nil {
+		t.Error("expected an error for an unknown revision")
+	}
+	if _, err := repo.ResolveRevision(ctx, "--output=x"); err == nil {
+		t.Error("expected an error for an invalid revision")
+	}
+
+	content, found, err := repo.ShowFile(ctx, first, "a.txt")
+	if err != nil || !found || string(content) != "a" {
+		t.Errorf("ShowFile(first) = %q, %v, %v", content, found, err)
+	}
+	content, _, _ = repo.ShowFile(ctx, second, "a.txt")
+	if string(content) != "a2\n\n" {
+		t.Errorf("trailing newlines must be kept: %q", content)
+	}
+	if _, found, err := repo.ShowFile(ctx, first, "no/such/file"); found || err != nil {
+		t.Errorf("ShowFile(missing) = %v, %v", found, err)
+	}
+	if head := strings.TrimSpace(runGit(t, work, "rev-parse", "--abbrev-ref", "HEAD")); head != "master" {
+		t.Errorf("working tree moved: %s", head)
+	}
+}
