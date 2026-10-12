@@ -14,6 +14,8 @@ import (
 type ConfigSync struct {
 	ConfigCommon
 	GitBranch string
+	// Force syncs even if local-repo has uncommitted changes, which are lost when HEAD is detached.
+	Force bool
 }
 
 func RunSync(conf ConfigSync) (*SyncResult, error) {
@@ -36,6 +38,15 @@ func runSync(
 ) (*SyncResult, error) {
 	logger.Info("start sync")
 	defer func() { logger.Info("finish sync") }()
+	if !conf.Force {
+		dirty, err := repo.IsClean(ctx, false)
+		if err != nil {
+			return nil, err
+		}
+		if len(dirty) > 0 {
+			return nil, myerrors.NewErrorLocalRepoDirty(dirty)
+		}
+	}
 	// if current branch is detached, exec `git reset --hard``
 	if _, err := repo.CurrentBranch(ctx); err != nil && errors.As(err, &myerrors.GitBranchIsDetached{}) {
 		if err := repo.Reset(ctx); err != nil {
