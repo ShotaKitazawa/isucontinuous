@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"go.uber.org/zap"
@@ -57,7 +56,10 @@ func (d Deployer) Deploy(ctx context.Context, host string, targets []config.Depl
 	for _, target := range targets {
 		src := filepath.Join(d.localRepoPath, host, target.Src)
 		if err := filepath.WalkDir(src, func(path string, info fs.DirEntry, err error) error {
-			if info != nil && !reflect.ValueOf(info).IsNil() && !info.IsDir() {
+			if err != nil {
+				return nil
+			}
+			if !info.IsDir() {
 				dst := filepath.Join(target.Target, strings.TrimPrefix(path, src))
 				dirname := filepath.Dir(dst)
 				if _, _, err := d.shell.Execf(ctx, "", `test -d "%s"`, dirname); err != nil {
