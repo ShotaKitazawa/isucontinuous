@@ -16,7 +16,7 @@ type ConfigCommon struct {
 	LogLevel      string
 	LogFilename   string
 	LocalRepoPath string
-	Reporter Reporter
+	Reporter      Reporter
 }
 
 func (c ConfigCommon) reporter() Reporter {
