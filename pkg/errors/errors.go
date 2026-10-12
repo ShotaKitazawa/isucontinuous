@@ -96,3 +96,24 @@ func NewErrorGitBranchIsFirstCommit() GitBranchIsFirstCommit {
 func (e GitBranchIsFirstCommit) Error() string {
 	return fmt.Sprintf("current branch name is <detached>. Please exec `sync` command first to checkout.")
 }
+
+/* HostTask */
+
+type HostTask struct {
+	Host string
+	Task string
+	Err  error
+}
+
+func NewErrorHostTask(host, task string, err error) HostTask {
+	return HostTask{host, task, err}
+}
+
+// Error does not prefix host/task: that would change the CLI error output.
+func (e HostTask) Error() string {
+	return e.Err.Error()
+}
+
+func (e HostTask) Unwrap() error {
+	return e.Err
+}
