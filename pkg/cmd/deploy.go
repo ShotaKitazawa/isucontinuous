@@ -21,21 +21,21 @@ type ConfigDeploy struct {
 	SlackToken  string
 }
 
-func RunDeploy(conf ConfigDeploy) error {
+func RunDeploy(conf ConfigDeploy) (*DeployResult, error) {
 	ctx := context.Background()
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Attach local-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// load isucontinuous.yaml
 	isucontinuous, err := repo.LoadConf()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	slackClient := slack.NewClient(logger, conf.SlackToken, isucontinuous.Slack.DefaultChannelId)
 	return runDeploy(conf, ctx, logger, repo, slackClient, deploy.NewDeployers)
@@ -45,43 +45,43 @@ func runDeploy(
 	conf ConfigDeploy, ctx context.Context, logger *zap.Logger,
 	repo localrepo.LocalRepoIface, slackClient slack.ClientIface,
 	newDeployersFunc deploy.NewDeployersFunc,
-) error {
+) (*DeployResult, error) {
 	logger.Info("start deploy")
 	defer func() { logger.Info("finish deploy") }()
 	// Fetch remote-repo & switch to gitRevision
 	if err := repo.Fetch(ctx); err != nil {
-		return err
+		return nil, err
 	}
 	if err := repo.SwitchDetachedBranch(ctx, conf.GitRevision); err != nil {
-		return err
+		return nil, err
 	}
 	// Load isucontinus.yaml
 	isucontinuous, err := repo.LoadConf()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Check to have already deployed
 	if !conf.Force {
 		if r, err := repo.GetRevision(ctx); err == nil {
 			if r != conf.GitRevision {
-				return fmt.Errorf(
+				return nil, fmt.Errorf(
 					`"deploy" command has already been executed. Please execute "afterbench" or "deploy --force".`)
 			}
 		}
 	}
-	// Print CommitHash & CommitMessage
+	// Get CommitHash & CommitMessage
 	hash, msg, err := repo.GetHeadInfo(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	fmt.Printf("hash: %s\nmessage: %s\n\n", hash, msg)
+	result := &DeployResult{Revision: conf.GitRevision, Hash: hash, Message: msg}
 	// Set deployers
 	deployers, err := newDeployersFunc(logger, template.New(conf.GitRevision), conf.LocalRepoPath, isucontinuous.Hosts)
 	if err != nil {
-		return err
+		return result, err
 	}
 	// Deploy files to per host
-	if err := perHostExec(logger, ctx, isucontinuous.Hosts, []task{{
+	hosts, err := perHostExec(logger, ctx, conf.reporter(), isucontinuous.Hosts, []task{{
 		"Deploy",
 		func(ctx context.Context, host config.Host) error {
 			// Notify to Slack
@@ -113,9 +113,11 @@ func runDeploy(
 			}
 			return nil
 		},
-	}}); err != nil {
-		return err
+	}})
+	result.Hosts = hosts
+	if err != nil {
+		return result, err
 	}
 	// Store revision to local-repo
-	return repo.SetRevision(ctx, conf.GitRevision)
+	return result, repo.SetRevision(ctx, conf.GitRevision)
 }

@@ -20,21 +20,21 @@ type ConfigAfterBench struct {
 	SlackToken string
 }
 
-func RunAfterBench(conf ConfigAfterBench) error {
+func RunAfterBench(conf ConfigAfterBench) (*AfterBenchResult, error) {
 	ctx := context.Background()
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Attach local-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// load isucontinuous.yaml
 	isucontinuous, err := repo.LoadConf()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	slackClient := slack.NewClient(logger, conf.SlackToken, isucontinuous.Slack.DefaultChannelId)
 	return runAfterBench(conf, ctx, logger, repo, slackClient, afterbench.New)
@@ -44,21 +44,22 @@ func runAfterBench(
 	conf ConfigAfterBench, ctx context.Context, logger *zap.Logger,
 	repo localrepo.LocalRepoIface, slackClient slack.ClientIface,
 	newAfterBenchersFunc afterbench.NewFunc,
-) error {
+) (*AfterBenchResult, error) {
 	logger.Info("start afterbench")
 	defer func() { logger.Info("finish afterbench") }()
 	// Load isucontinus.yaml
 	isucontinuous, err := repo.LoadConf()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Get revision
 	gitRevision, err := repo.GetRevision(ctx)
 	if err != nil {
-		return fmt.Errorf("%s/.revision is not found. exec `deploy` command first", conf.LocalRepoPath)
+		return nil, fmt.Errorf("%s/.revision is not found. exec `deploy` command first", conf.LocalRepoPath)
 	}
 	// AfterBench files to per host
-	if err := perHostExec(logger, ctx, isucontinuous.Hosts, []task{{
+	warnings := &warningList{}
+	hosts, err := perHostExec(logger, ctx, conf.reporter(), isucontinuous.Hosts, []task{{
 		"AfterBench",
 		func(ctx context.Context, host config.Host) error {
 			if host.AfterBench.Target == "" {
@@ -77,7 +78,9 @@ func runAfterBench(
 			defer func() {
 				suffix := fmt.Sprintf("%d", time.Now().Unix())
 				if err := afterbencher.CleanUp(ctx, host.AfterBench.Target, suffix); err != nil {
-					logger.Error(fmt.Sprintf("failed to cleanup: %v", err), zap.String("host", host.Host))
+					msg := fmt.Sprintf("[%s] failed to cleanup: %v", host.Host, err)
+					logger.Error(msg, zap.String("host", host.Host))
+					warnings.Add(msg)
 				}
 			}()
 
@@ -90,9 +93,11 @@ func runAfterBench(
 				return err
 			}
 			return nil
-		}}}); err != nil {
-		return err
+		}}})
+	result := &AfterBenchResult{Result{Hosts: hosts, Warnings: warnings.List()}}
+	if err != nil {
+		return result, err
 	}
 	// Clear revision-file
-	return repo.ClearRevision(ctx)
+	return result, repo.ClearRevision(ctx)
 }

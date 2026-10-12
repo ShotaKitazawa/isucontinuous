@@ -15,16 +15,16 @@ type ConfigSetup struct {
 	ConfigCommon
 }
 
-func RunSetup(conf ConfigSetup) error {
+func RunSetup(conf ConfigSetup) (*SetupResult, error) {
 	ctx := context.Background()
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Attach local isucon-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// set installers
 	return runSetup(conf, ctx, logger, repo, install.NewInstallers)
@@ -33,20 +33,20 @@ func RunSetup(conf ConfigSetup) error {
 func runSetup(
 	conf ConfigSetup, ctx context.Context, logger *zap.Logger,
 	repo localrepo.LocalRepoIface, newInstallers install.NewInstallersFunc,
-) error {
+) (*SetupResult, error) {
 	logger.Info("start setup")
 	defer func() { logger.Info("finish setup") }()
 	// load isucontinuous.yaml
 	isucontinuous, err := repo.LoadConf()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Set installers
 	installers, err := newInstallers(logger, isucontinuous.Hosts)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return perHostExec(logger, ctx, isucontinuous.Hosts, []task{{
+	hosts, err := perHostExec(logger, ctx, conf.reporter(), isucontinuous.Hosts, []task{{
 		"Install Docker",
 		func(ctx context.Context, host config.Host) error {
 			installer := installers[host.Host]
@@ -81,4 +81,5 @@ func runSetup(
 			return nil
 		},
 	}})
+	return &SetupResult{Result{Hosts: hosts}}, err
 }

@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/ShotaKitazawa/isucontinuous/pkg/cmd"
 	"github.com/spf13/cobra"
 )
@@ -23,7 +25,12 @@ var pushCmd = &cobra.Command{
 			GitBranch: pushGitBranch,
 			Message:   pushMessage,
 		}
-		return cmd.RunPush(conf)
+		r, err := cmd.RunPush(conf)
+		if r != nil {
+			printPushResult(os.Stdout, r)
+			printWarnings(os.Stderr, r.Warnings)
+		}
+		return err
 	},
 }
 
