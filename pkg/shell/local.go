@@ -38,6 +38,20 @@ func (c *LocalClient) Exec(ctx context.Context, basedir string, command string) 
 	return trimNewLine(stdout), trimNewLine(stderr), err
 }
 
+// ExecArgs runs name with args without a shell, so values never get interpreted as shell syntax.
+func (c *LocalClient) ExecArgs(ctx context.Context, basedir string, name string, args ...string) (bytes.Buffer, bytes.Buffer, error) {
+	stdout := bytes.Buffer{}
+	stderr := bytes.Buffer{}
+	cc := c.exec.CommandContext(ctx, name, args...)
+	if basedir != "" {
+		cc.SetDir(basedir)
+	}
+	cc.SetStdout(&stdout)
+	cc.SetStderr(&stderr)
+	err := cc.Run()
+	return trimNewLine(stdout), trimNewLine(stderr), err
+}
+
 func (c *LocalClient) Execf(ctx context.Context, basedir string, command string, a ...interface{}) (bytes.Buffer, bytes.Buffer, error) {
 	return c.Exec(ctx, basedir, fmt.Sprintf(command, a...))
 }

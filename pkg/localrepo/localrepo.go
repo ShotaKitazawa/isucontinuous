@@ -3,8 +3,10 @@ package localrepo
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -124,24 +126,27 @@ func (l *LocalRepo) Fetch(ctx context.Context) error {
 }
 
 func (l *LocalRepo) SwitchAndMerge(ctx context.Context, branch string) error {
+	if err := validateRef(branch); err != nil {
+		return err
+	}
 	// get current branch name
 	currentBranch, err := l.CurrentBranch(ctx)
 	if err != nil && !errors.As(err, &myerrors.GitBranchIsDetached{}) {
 		return err
 	}
 	// check to exist
-	if _, _, err := l.shell.Exec(ctx, l.absPath, `git branch --format="%(refname:short)" | grep -e ^`+branch+`$`); err != nil {
+	if _, _, err := l.shell.ExecArgs(ctx, l.absPath, "git", "rev-parse", "--verify", "--quiet", "refs/heads/"+branch); err != nil {
 		// checkout only
-		if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git checkout %s`, branch); err != nil {
+		if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "checkout", branch); err != nil {
 			return myerrors.NewErrorCommandExecutionFailed(stderr)
 		}
 	} else {
 		if currentBranch != branch {
 			// checkout & merge
-			if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git checkout %s`, branch); err != nil {
+			if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "checkout", branch); err != nil {
 				return myerrors.NewErrorCommandExecutionFailed(stderr)
 			}
-			if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git merge origin/%s`, branch); err != nil {
+			if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "merge", "origin/"+branch); err != nil {
 				return myerrors.NewErrorCommandExecutionFailed(stderr)
 			}
 			return nil
@@ -151,7 +156,13 @@ func (l *LocalRepo) SwitchAndMerge(ctx context.Context, branch string) error {
 }
 
 func (l *LocalRepo) SwitchDetachedBranch(ctx context.Context, revision string) error {
-	if _, stderr, err := l.shell.Execf(ctx, l.absPath, "git checkout -d remotes/origin/%s || git checkout -d %s", revision, revision); err != nil {
+	if err := validateRef(revision); err != nil {
+		return err
+	}
+	if _, _, err := l.shell.ExecArgs(ctx, l.absPath, "git", "checkout", "-d", "remotes/origin/"+revision); err == nil {
+		return nil
+	}
+	if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "checkout", "-d", revision); err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	return nil
@@ -197,7 +208,7 @@ func (l *LocalRepo) DiffWithRemote(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if stdout, stderr, err := l.shell.Execf(ctx, l.absPath, "git diff origin/%s %s", currentBranch, currentBranch); err != nil {
+	if stdout, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "diff", "origin/"+currentBranch, currentBranch, "--"); err != nil {
 		if isFirstCommit, _ := l.IsFirstCommit(ctx); isFirstCommit {
 			return false, myerrors.NewErrorGitBranchIsFirstCommit()
 		}
@@ -243,4 +254,26 @@ func (l *LocalRepo) GetHeadInfo(ctx context.Context) (string, string, error) {
 	}
 	msg := stdout.String()
 	return hash, msg, nil
+}
+
+// validateRef follows git check-ref-format; revision expressions such as HEAD~1 are rejected on purpose.
+func validateRef(ref string) error {
+	invalid := func() error { return fmt.Errorf("invalid git ref name: %q", ref) }
+	if ref == "" || ref == "@" || strings.HasPrefix(ref, "-") ||
+		strings.HasPrefix(ref, "/") || strings.HasSuffix(ref, "/") ||
+		strings.HasSuffix(ref, ".") || strings.Contains(ref, "..") ||
+		strings.Contains(ref, "//") || strings.Contains(ref, "@{") {
+		return invalid()
+	}
+	for _, r := range ref {
+		if r < 0x20 || r == 0x7f || strings.ContainsRune(" ~^:?*[\\", r) {
+			return invalid()
+		}
+	}
+	for _, c := range strings.Split(ref, "/") {
+		if strings.HasPrefix(c, ".") || strings.HasSuffix(c, ".lock") {
+			return invalid()
+		}
+	}
+	return nil
 }
