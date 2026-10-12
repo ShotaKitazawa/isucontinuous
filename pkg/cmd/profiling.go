@@ -59,6 +59,9 @@ func runProfiling(
 	if err != nil {
 		return nil, err
 	}
+	if err := checkHeadMatchesLocks(ctx, repo, isucontinuous.Hosts, locks); err != nil {
+		return nil, err
+	}
 	// Profiling files to per host
 	hosts, err := perHostExec(logger, ctx, conf.reporter(), isucontinuous.Hosts, []task{{
 		"Profiling",

@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
+	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/hoststate"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/lock"
@@ -100,6 +101,21 @@ func requireAll(
 		result[hosts[idx].Name] = locks[idx]
 	}
 	return result, first
+}
+
+// checkHeadMatchesLocks fails if HEAD is not the commit every host was locked with: sync, import or push
+// may have moved local-repo since the deploy, and profiling would then run another yaml. A lock without a revision never matches.
+func checkHeadMatchesLocks(ctx context.Context, repo localrepo.LocalRepoIface, hosts []config.Host, locks map[string]hoststate.Lock) error {
+	head, _, err := repo.GetHeadInfo(ctx)
+	if err != nil {
+		return err
+	}
+	for _, host := range hosts {
+		if locked := locks[host.Name].Revision; locked != head {
+			return myerrors.NewErrorRevisionMismatch(host.Name, locked, head)
+		}
+	}
+	return nil
 }
 
 // releaseOwn releases the lock of the owner; a failure is logged because the caller is already handling another result.

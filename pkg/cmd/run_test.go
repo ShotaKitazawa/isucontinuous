@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"go.uber.org/zap"
@@ -75,6 +76,9 @@ func (f *fakeRepo) Reset(ctx context.Context) error {
 func (f *fakeRepo) SwitchAndMerge(ctx context.Context, branch string) error {
 	f.calls = append(f.calls, "merge:"+branch)
 	return nil
+}
+func (f *fakeRepo) GetHeadCommit(ctx context.Context) (*localrepo.CommitInfo, error) {
+	return &localrepo.CommitInfo{Hash: "abc1234", Message: "message", Date: time.Date(2026, 10, 13, 1, 2, 3, 0, time.UTC)}, nil
 }
 func (f *fakeRepo) GetHeadInfo(ctx context.Context) (string, string, error) {
 	return "abc1234", "message", nil
@@ -164,7 +168,7 @@ func TestRunDeploy_Result(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Hash != "abc1234" || res.Message != "message" || res.Revision != "master" {
+	if res.Hash != "abc1234" || res.Message != "message" || res.Revision != "master" || res.Date.IsZero() {
 		t.Errorf("result = %+v", res)
 	}
 	if want := "switch,slack"; strings.Join(repo.calls, ",") != want {
@@ -307,5 +311,19 @@ func TestRunSync_CleanDetachedResets(t *testing.T) {
 	}
 	if !repo.reset {
 		t.Error("a detached HEAD must be reset after the check")
+	}
+}
+
+func TestRunDeploy_RefusesDirtyWorkingTree(t *testing.T) {
+	repo := &fakeRepo{conf: &config.Config{}, dirty: []string{"web01/untracked.conf"}}
+	conf := ConfigDeploy{GitRevision: "master"}
+	conf.Reporter = NewRecordingReporter()
+	_, err := runDeploy(conf, context.Background(), zaptest.NewLogger(t), repo, nil, nil, lockersWith(nil))
+	var dirtyErr myerrors.LocalRepoDirty
+	if !errors.As(err, &dirtyErr) {
+		t.Fatalf("err = %v, want LocalRepoDirty", err)
+	}
+	if len(repo.calls) != 0 {
+		t.Errorf("the working tree must not move: %v", repo.calls)
 	}
 }

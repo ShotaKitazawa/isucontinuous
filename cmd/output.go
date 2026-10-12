@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/cmd"
 )
@@ -18,7 +19,7 @@ func printDeployResult(w io.Writer, r *cmd.DeployResult) {
 		return
 	}
 	if r.Hash != "" {
-		fmt.Fprintf(w, "hash: %s\nmessage: %s\n\n", r.Hash, r.Message)
+		fmt.Fprintf(w, "hash: %s\ndate: %s\nmessage: %s\n\n", r.Hash, r.Date.Format(time.RFC3339), r.Message)
 	}
 }
 

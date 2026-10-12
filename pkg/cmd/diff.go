@@ -59,7 +59,7 @@ func runDiff(
 	}
 	result := &DiffResult{}
 	result.Warnings = isucontinuous.Warnings
-	deployers, err := newDeployersFunc(logger, template.New(conf.GitRevision), conf.LocalRepoPath, isucontinuous.Hosts)
+	deployers, err := newDeployersFunc(logger, template.New(hash), conf.LocalRepoPath, isucontinuous.Hosts)
 	if err != nil {
 		return result, err
 	}

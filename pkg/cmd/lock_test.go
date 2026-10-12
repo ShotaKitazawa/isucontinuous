@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap/zaptest"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
+	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/hoststate"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/slack"
@@ -32,11 +33,13 @@ const (
 )
 
 type lockEnv struct {
-	t      *testing.T
-	dir    string
-	repo   *fakeRepo
-	hosts  []config.Host
-	shells map[string]*hoststate.FakeShell
+	t    *testing.T
+	dir  string
+	repo *fakeRepo
+	// lockRevision is the revision of locks made by lock(); it matches HEAD unless a test says otherwise
+	lockRevision string
+	hosts        []config.Host
+	shells       map[string]*hoststate.FakeShell
 
 	mu       sync.Mutex
 	commands []string
@@ -44,7 +47,7 @@ type lockEnv struct {
 
 func newLockEnv(t *testing.T) *lockEnv {
 	t.Helper()
-	e := &lockEnv{t: t, dir: t.TempDir(), shells: map[string]*hoststate.FakeShell{}}
+	e := &lockEnv{t: t, lockRevision: headHash, dir: t.TempDir(), shells: map[string]*hoststate.FakeShell{}}
 	e.repo = &fakeRepo{shown: map[string][]byte{}}
 	for _, name := range []string{"web01", "web02"} {
 		if err := os.MkdirAll(filepath.Join(e.dir, name, "app"), 0755); err != nil {
@@ -95,7 +98,7 @@ func (e *lockEnv) common() ConfigCommon {
 
 func (e *lockEnv) lock(host, owner, operation string) {
 	e.t.Helper()
-	l := hoststate.Lock{Owner: owner, Revision: "2222222", AcquiredAt: time.Now(), Operation: operation}
+	l := hoststate.Lock{Owner: owner, Revision: e.lockRevision, AcquiredAt: time.Now(), Operation: operation}
 	if _, err := hoststate.AcquireLock(context.Background(), e.shells[host], l, hoststate.AcquireOptions{}); err != nil {
 		e.t.Fatal(err)
 	}
@@ -173,12 +176,13 @@ func TestRunDeploy_AllOrNothing(t *testing.T) {
 			t.Fatal("want error")
 		}
 		l, found := e.held("web01")
-		if !found || l.Owner != me || l.Revision != "2222222" {
+		if !found || l.Owner != me || l.Revision != headHash {
 			t.Errorf("web01: lock = %+v, %v", l, found)
 		}
 	})
 	t.Run("reentrant refreshes the revision", func(t *testing.T) {
 		e := newLockEnv(t)
+		e.lockRevision = "2222222"
 		e.lock("web01", me, "deploy")
 		if _, err := e.deploy(ConfigDeploy{}); err != nil {
 			t.Fatal(err)
@@ -290,6 +294,20 @@ func TestRunProfiling(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+	t.Run("HEAD differs from the revision of the lock", func(t *testing.T) {
+		e := newLockEnv(t)
+		e.lock("web01", me, "deploy")
+		e.lockRevision = "2222222"
+		e.lock("web02", me, "deploy")
+		_, err := e.profiling()
+		var mismatch myerrors.RevisionMismatch
+		if !errors.As(err, &mismatch) || mismatch.Host != "web02" || mismatch.Locked != "2222222" || mismatch.Head != headHash {
+			t.Fatalf("err = %v", err)
+		}
+		if e.ran("profile") {
+			t.Error("profiling ran")
+		}
+	})
 	t.Run("revision of the lock", func(t *testing.T) {
 		e := newLockEnv(t)
 		e.lock("web01", me, "deploy")
@@ -297,7 +315,7 @@ func TestRunProfiling(t *testing.T) {
 		if _, err := e.profiling(); err != nil {
 			t.Fatal(err)
 		}
-		if !e.ran("profile 2222222") {
+		if !e.ran("profile " + headHash) {
 			t.Errorf("commands = %v", e.commands)
 		}
 		if _, found := e.held("web01"); !found {
@@ -323,6 +341,20 @@ func TestRunAfterBench(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+	t.Run("HEAD differs from the revision of the lock", func(t *testing.T) {
+		e := newLockEnv(t)
+		e.lockRevision = "2222222"
+		e.lock("web01", me, "deploy")
+		e.lock("web02", me, "deploy")
+		_, err := e.afterbench()
+		var mismatch myerrors.RevisionMismatch
+		if !errors.As(err, &mismatch) || e.ran("collect") {
+			t.Fatalf("err = %v", err)
+		}
+		if _, found := e.held("web01"); !found {
+			t.Error("the lock must remain")
+		}
+	})
 	t.Run("success releases", func(t *testing.T) {
 		e := newLockEnv(t)
 		e.lock("web01", me, "deploy")
@@ -330,7 +362,7 @@ func TestRunAfterBench(t *testing.T) {
 		if _, err := e.afterbench(); err != nil {
 			t.Fatal(err)
 		}
-		if !e.ran(`mkdir -p "/p/2222222"`) {
+		if !e.ran(`mkdir -p "/p/abc1234"`) {
 			t.Errorf("commands = %v", e.commands)
 		}
 		for _, h := range []string{"web01", "web02"} {
@@ -444,7 +476,7 @@ func TestRunSetupAndImport_Lock(t *testing.T) {
 			if err := c.run(e); err != nil {
 				t.Fatal(err)
 			}
-			if l, found := e.held("web01"); !found || l.Operation != "deploy" || l.Revision != "2222222" {
+			if l, found := e.held("web01"); !found || l.Operation != "deploy" || l.Revision != headHash {
 				t.Errorf("lock = %+v, %v", l, found)
 			}
 		})

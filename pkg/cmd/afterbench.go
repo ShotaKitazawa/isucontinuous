@@ -67,6 +67,9 @@ func runAfterBench(
 	if err != nil {
 		return nil, err
 	}
+	if err := checkHeadMatchesLocks(ctx, repo, isucontinuous.Hosts, locks); err != nil {
+		return nil, err
+	}
 	// AfterBench files to per host
 	warnings := &warningList{}
 	for _, w := range isucontinuous.Warnings {

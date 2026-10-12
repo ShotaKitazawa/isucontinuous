@@ -9,6 +9,7 @@ import (
 	"k8s.io/utils/exec"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
+	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/hoststate"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
@@ -57,6 +58,14 @@ func runDeploy(
 	if err := repo.Fetch(ctx); err != nil {
 		return nil, err
 	}
+	// the Deployer walks the file system, so untracked files would be deployed; they are not deleted here because import leaves its results there
+	dirty, err := repo.IsClean(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(dirty) > 0 {
+		return nil, myerrors.NewErrorLocalRepoDirty(dirty)
+	}
 	if err := repo.SwitchDetachedBranch(ctx, conf.GitRevision); err != nil {
 		return nil, err
 	}
@@ -66,12 +75,13 @@ func runDeploy(
 		return nil, err
 	}
 	slackClient := newSlackClient(isucontinuous)
-	// Get CommitHash & CommitMessage
-	hash, msg, err := repo.GetHeadInfo(ctx)
+	// Everything below uses the resolved commit hash: a branch name can point to another commit after the next push
+	head, err := repo.GetHeadCommit(ctx)
 	if err != nil {
 		return nil, err
 	}
-	result := &DeployResult{Revision: conf.GitRevision, Hash: hash, Message: msg}
+	hash := head.Hash
+	result := &DeployResult{Revision: conf.GitRevision, Hash: hash, Message: head.Message, Date: head.Date}
 	result.Warnings = isucontinuous.Warnings
 	owner, err := conf.owner()
 	if err != nil {
