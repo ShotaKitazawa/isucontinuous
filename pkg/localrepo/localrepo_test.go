@@ -2,6 +2,7 @@ package localrepo
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +11,8 @@ import (
 
 	"go.uber.org/zap/zaptest"
 	kexec "k8s.io/utils/exec"
+
+	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 )
 
 func TestValidateRef(t *testing.T) {
@@ -327,4 +330,88 @@ func TestLocalRepo_ResolveRevisionAndShowFile(t *testing.T) {
 	if head := strings.TrimSpace(runGit(t, work, "rev-parse", "--abbrev-ref", "HEAD")); head != "master" {
 		t.Errorf("working tree moved: %s", head)
 	}
+}
+
+func TestLocalRepo_IsClean(t *testing.T) {
+	ctx := context.Background()
+	repo, work, _ := newTestRepo(t)
+	if paths, err := repo.IsClean(ctx, true); err != nil || len(paths) != 0 {
+		t.Fatalf("paths = %v, err = %v", paths, err)
+	}
+	if err := os.WriteFile(filepath.Join(work, ".gitignore"), []byte("ignored.txt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, work, "add", ".gitignore")
+	runGit(t, work, "commit", "-m", "ignore")
+	os.WriteFile(filepath.Join(work, "ignored.txt"), []byte("x"), 0644)
+	if paths, _ := repo.IsClean(ctx, false); len(paths) != 0 {
+		t.Errorf("ignored file must not count without includeIgnored: %v", paths)
+	}
+	if paths, _ := repo.IsClean(ctx, true); len(paths) != 1 || paths[0] != "ignored.txt" {
+		t.Errorf("paths = %v, want [ignored.txt]", paths)
+	}
+	os.MkdirAll(filepath.Join(work, "dir"), 0755)
+	os.WriteFile(filepath.Join(work, "dir", "new.txt"), []byte("x"), 0644)
+	os.WriteFile(filepath.Join(work, "a.txt"), []byte("changed"), 0644)
+	paths, err := repo.IsClean(ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(paths, ",") != "a.txt,dir/new.txt" {
+		t.Errorf("paths = %v", paths)
+	}
+}
+
+func TestLocalRepo_GetHeadCommit(t *testing.T) {
+	repo, work, _ := newTestRepo(t)
+	runGit(t, work, "commit", "--allow-empty", "-m", "subject\n\nbody")
+	c, err := repo.GetHeadCommit(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := strings.TrimSpace(runGit(t, work, "rev-parse", "HEAD")); c.Hash != want {
+		t.Errorf("Hash = %q, want %q", c.Hash, want)
+	}
+	if c.Message != "subject\n\nbody" || c.Date.IsZero() {
+		t.Errorf("commit = %+v", c)
+	}
+}
+
+func TestLocalRepo_RemoteBranches(t *testing.T) {
+	repo, work, _ := newTestRepo(t)
+	runGit(t, work, "branch", "other")
+	runGit(t, work, "push", "origin", "other")
+	branches, def, err := repo.RemoteBranches(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(branches, ",") != "master,other" || def != "master" {
+		t.Errorf("branches = %v, default = %q", branches, def)
+	}
+}
+
+func TestLocalRepo_Lock(t *testing.T) {
+	ctx := context.Background()
+	repo, work, _ := newTestRepo(t)
+	unlock, err := repo.Lock(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(work, ".git", "isucontinuous.lock")); err != nil {
+		t.Errorf("lock file must be in .git: %v", err)
+	}
+	if paths, _ := repo.IsClean(ctx, true); len(paths) != 0 {
+		t.Errorf("lock file must not dirty the working tree: %v", paths)
+	}
+	_, err = repo.Lock(ctx)
+	var locked myerrors.LocalRepoLocked
+	if !errors.As(err, &locked) {
+		t.Fatalf("err = %v, want LocalRepoLocked", err)
+	}
+	unlock()
+	unlock2, err := repo.Lock(ctx)
+	if err != nil {
+		t.Fatalf("lock after unlock: %v", err)
+	}
+	unlock2()
 }

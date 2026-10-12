@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 	kexec "k8s.io/utils/exec"
@@ -50,6 +51,15 @@ type LocalRepoIface interface {
 	GetHeadInfo(ctx context.Context) (string, string, error)
 	ResolveRevision(ctx context.Context, revision string) (string, error)
 	ShowFile(ctx context.Context, hash, path string) ([]byte, bool, error)
+	IsClean(ctx context.Context, includeIgnored bool) ([]string, error)
+	GetHeadCommit(ctx context.Context) (*CommitInfo, error)
+	RemoteBranches(ctx context.Context) (branches []string, defaultBranch string, err error)
+}
+
+type CommitInfo struct {
+	Hash    string
+	Message string
+	Date    time.Time
 }
 
 type LocalRepo struct {
@@ -316,6 +326,78 @@ func (l *LocalRepo) GetHeadInfo(ctx context.Context) (string, string, error) {
 	}
 	msg := stdout.String()
 	return hash, msg, nil
+}
+
+// IsClean returns the paths that make the working tree dirty; ignored files count only with includeIgnored,
+// because the Deployer walks the file system and would deploy them.
+func (l *LocalRepo) IsClean(ctx context.Context, includeIgnored bool) ([]string, error) {
+	args := []string{"status", "--porcelain", "-z", "--untracked-files=all"}
+	if includeIgnored {
+		args = append(args, "--ignored")
+	}
+	stdout, stderr, err := l.shell.ExecArgsRaw(ctx, l.absPath, "git", args...)
+	if err != nil {
+		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	var paths []string
+	entries := strings.Split(stdout.String(), "\x00")
+	for i := 0; i < len(entries); i++ {
+		e := entries[i]
+		if len(e) < 4 {
+			continue
+		}
+		paths = append(paths, e[3:])
+		// a rename or copy is followed by its source path
+		if e[0] == 'R' || e[0] == 'C' {
+			i++
+		}
+	}
+	return paths, nil
+}
+
+func (l *LocalRepo) GetHeadCommit(ctx context.Context) (*CommitInfo, error) {
+	stdout, stderr, err := l.shell.ExecArgsRaw(ctx, l.absPath, "git", "log", "-1", "--format=%H%x00%cI%x00%B")
+	if err != nil {
+		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	parts := strings.SplitN(stdout.String(), "\x00", 3)
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("unexpected git log output: %q", stdout.String())
+	}
+	date, err := time.Parse(time.RFC3339, parts[1])
+	if err != nil {
+		return nil, err
+	}
+	return &CommitInfo{Hash: parts[0], Date: date, Message: strings.TrimSpace(parts[2])}, nil
+}
+
+// RemoteBranches lists the branches of origin and the one HEAD points to, if any.
+func (l *LocalRepo) RemoteBranches(ctx context.Context) ([]string, string, error) {
+	stdout, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "ls-remote", "--symref", "origin", "HEAD", "refs/heads/*")
+	if err != nil {
+		return nil, "", myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	var branches []string
+	defaultBranch := ""
+	for _, line := range strings.Split(stdout.String(), "\n") {
+		fields := strings.Fields(line)
+		switch {
+		case len(fields) == 3 && fields[0] == "ref:" && fields[2] == "HEAD":
+			defaultBranch = strings.TrimPrefix(fields[1], "refs/heads/")
+		case len(fields) == 2 && strings.HasPrefix(fields[1], "refs/heads/"):
+			branches = append(branches, strings.TrimPrefix(fields[1], "refs/heads/"))
+		}
+	}
+	return branches, defaultBranch, nil
+}
+
+// Lock excludes other processes on this machine from operating on local-repo; it does not wait.
+func (l *LocalRepo) Lock(ctx context.Context) (func(), error) {
+	stdout, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "rev-parse", "--absolute-git-dir")
+	if err != nil {
+		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	return lockFile(filepath.Join(stdout.String(), "isucontinuous.lock"))
 }
 
 // ResolveRevision resolves revision to a commit hash without moving the working tree.

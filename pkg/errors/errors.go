@@ -3,6 +3,7 @@ package errors
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 /* Unkouwn */
@@ -116,4 +117,49 @@ func (e HostTask) Error() string {
 
 func (e HostTask) Unwrap() error {
 	return e.Err
+}
+
+/* LocalRepoDirty */
+
+type LocalRepoDirty struct {
+	Paths []string
+}
+
+func NewErrorLocalRepoDirty(paths []string) LocalRepoDirty {
+	return LocalRepoDirty{paths}
+}
+
+func (e LocalRepoDirty) Error() string {
+	return fmt.Sprintf("local-repo has uncommitted or untracked files: %s", strings.Join(e.Paths, ", "))
+}
+
+/* LocalRepoLocked */
+
+type LocalRepoLocked struct {
+	Path string
+}
+
+func NewErrorLocalRepoLocked(path string) LocalRepoLocked {
+	return LocalRepoLocked{path}
+}
+
+func (e LocalRepoLocked) Error() string {
+	return fmt.Sprintf("local-repo is in use by another isucontinuous process (lock: %s).", e.Path)
+}
+
+/* RevisionMismatch */
+
+type RevisionMismatch struct {
+	Host   string
+	Locked string
+	Head   string
+}
+
+func NewErrorRevisionMismatch(host, locked, head string) RevisionMismatch {
+	return RevisionMismatch{host, locked, head}
+}
+
+func (e RevisionMismatch) Error() string {
+	return fmt.Sprintf("the lock of %s has revision %q but local-repo HEAD is %q. Please deploy again or checkout the locked revision.",
+		e.Host, e.Locked, e.Head)
 }
