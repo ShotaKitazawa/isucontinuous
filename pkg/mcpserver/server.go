@@ -43,6 +43,8 @@ type Options struct {
 	// Common leaves Owner empty so that locks are held as user@host, the same as the CLI.
 	Common     cmd.ConfigCommon
 	SlackToken string
+	// Limits bound the artifacts in the afterbench response; the zero value means the defaults.
+	Limits Limits
 	// Runners nil means the real cmd.Run* functions.
 	Runners *Runners
 	Version string
