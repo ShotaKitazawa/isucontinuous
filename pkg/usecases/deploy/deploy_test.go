@@ -147,7 +147,7 @@ func TestDeployer_Execute(t *testing.T) {
 		m.EXPECT().Host().Return("server").AnyTimes()
 		m.EXPECT().Exec(ctx, "", "command -v sha256sum >/dev/null 2>&1").Return(ok())
 		m.EXPECT().Execf(ctx, "", sumCmd, sumArgs).Return(*bytes.NewBufferString(
-			sumLine(t, nginxConf, "/etc/nginx/nginx.conf")+sumLine(t, defaultSite, "/etc/nginx/sites-available/default")),
+			sumLine(t, nginxConf, "/etc/nginx/nginx.conf") + sumLine(t, defaultSite, "/etc/nginx/sites-available/default")),
 			bytes.Buffer{}, nil)
 		m.EXPECT().Exec(ctx, "/etc/nginx", "make").Return(ok())
 		d := Deployer{log: zaptest.NewLogger(t), shell: m, localRepoPath: testDir}
