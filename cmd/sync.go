@@ -17,9 +17,10 @@ var syncCmd = &cobra.Command{
 		executed = true
 		conf := cmd.ConfigSync{
 			ConfigCommon: cmd.ConfigCommon{
-				LogLevel:      logLevel,
-				LogFilename:   logfile,
-				LocalRepoPath: localRepo,
+				LogLevel:       logLevel,
+				LogFilename:    logfile,
+				LocalRepoPath:  localRepo,
+				KnownHostsPath: knownHosts,
 			},
 			GitBranch: syncGitBranch,
 		}

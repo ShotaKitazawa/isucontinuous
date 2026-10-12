@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
@@ -23,6 +24,7 @@ func RunProfiling(conf ConfigProfiling) (*ProfilingResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	shell.SetKnownHostsPath(conf.KnownHostsPath)
 	// Attach local-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
 	if err != nil {

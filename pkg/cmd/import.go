@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"path/filepath"
 
 	"go.uber.org/zap"
@@ -24,6 +25,7 @@ func RunImport(conf ConfigImport) (*ImportResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	shell.SetKnownHostsPath(conf.KnownHostsPath)
 	// Attach local isucon-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
 	if err != nil {

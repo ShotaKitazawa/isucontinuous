@@ -19,9 +19,10 @@ var afterbenchCmd = &cobra.Command{
 		executed = true
 		conf := cmd.ConfigAfterBench{
 			ConfigCommon: cmd.ConfigCommon{
-				LogLevel:      logLevel,
-				LogFilename:   logfile,
-				LocalRepoPath: localRepo,
+				LogLevel:       logLevel,
+				LogFilename:    logfile,
+				LocalRepoPath:  localRepo,
+				KnownHostsPath: knownHosts,
 			},
 			SlackToken: deploySlackToken,
 		}

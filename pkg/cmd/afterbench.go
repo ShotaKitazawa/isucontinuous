@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"time"
 
 	"go.uber.org/zap"
@@ -26,6 +27,7 @@ func RunAfterBench(conf ConfigAfterBench) (*AfterBenchResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	shell.SetKnownHostsPath(conf.KnownHostsPath)
 	// Attach local-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
 	if err != nil {

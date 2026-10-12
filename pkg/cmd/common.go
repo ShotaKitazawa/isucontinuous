@@ -13,10 +13,11 @@ import (
 )
 
 type ConfigCommon struct {
-	LogLevel      string
-	LogFilename   string
-	LocalRepoPath string
-	Reporter      Reporter
+	LogLevel       string
+	LogFilename    string
+	LocalRepoPath  string
+	KnownHostsPath string
+	Reporter       Reporter
 }
 
 func (c ConfigCommon) reporter() Reporter {

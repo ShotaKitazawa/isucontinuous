@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
@@ -21,6 +22,7 @@ func RunSetup(conf ConfigSetup) (*SetupResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	shell.SetKnownHostsPath(conf.KnownHostsPath)
 	// Attach local isucon-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
 	if err != nil {
