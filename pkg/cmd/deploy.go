@@ -112,6 +112,10 @@ func runDeploy(
 			if err = deployer.RunCommand(ctx, host.Deploy.PostCommand); err != nil {
 				return err
 			}
+			// Record the revision that this host was deployed with
+			if err = deployer.RecordRevision(ctx, hash); err != nil {
+				return err
+			}
 			return nil
 		},
 	}})
