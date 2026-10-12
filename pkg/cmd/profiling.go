@@ -3,13 +3,13 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 
 	"go.uber.org/zap"
 	"k8s.io/utils/exec"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/template"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/profiling"
 )

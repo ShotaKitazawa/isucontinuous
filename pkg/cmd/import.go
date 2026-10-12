@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"path/filepath"
 
 	"go.uber.org/zap"
@@ -12,6 +11,7 @@ import (
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/imports"
 )
 
