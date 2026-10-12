@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/cmd"
@@ -27,7 +29,10 @@ var initCmd = &cobra.Command{
 			GitRemoteUrl: gitRemoteUrl,
 			SshKey:       sshKey,
 		}
-		_, err := cmd.RunInit(conf)
+		r, err := cmd.RunInit(conf)
+		if r != nil {
+			printWarnings(os.Stderr, r.Warnings)
+		}
 		return err
 	},
 }

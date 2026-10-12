@@ -40,9 +40,9 @@ func runInit(conf ConfigInit, ctx context.Context, logger *zap.Logger) (*InitRes
 		return nil, err
 	}
 	// Initialize local-repo
-	_, err := localrepo.InitLocalRepo(logger, exec.New(), conf.LocalRepoPath, conf.GitUsername, conf.GitEmail, conf.GitRemoteUrl, conf.SshKey)
+	_, warnings, err := localrepo.InitLocalRepo(logger, exec.New(), conf.LocalRepoPath, conf.GitUsername, conf.GitEmail, conf.GitRemoteUrl, conf.SshKey)
 	if err != nil {
 		return nil, err
 	}
-	return &InitResult{}, nil
+	return &InitResult{Result{Warnings: warnings}}, nil
 }

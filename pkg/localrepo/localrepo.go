@@ -22,6 +22,8 @@ const (
 	defaultCommitMessage  = "commit by isucontinuous"
 	// large files are warned, not blocked: the repository is disposable and GitHub rejects >100MB itself
 	largeFileThreshold = 1 << 20
+	// a remote that never answers must not hang init
+	remoteCheckTimeout = 30 * time.Second
 )
 
 type PushedFile struct {
@@ -69,46 +71,81 @@ type LocalRepo struct {
 	absPath string
 }
 
-func InitLocalRepo(logger *zap.Logger, e kexec.Interface, path, username, email, remoteUrl, sshKey string) (*LocalRepo, error) {
+func InitLocalRepo(logger *zap.Logger, e kexec.Interface, path, username, email, remoteUrl, sshKey string) (*LocalRepo, []string, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	l := &LocalRepo{*logger, shell.NewLocalClient(e), absPath}
 	ctx := context.Background()
 	// Initialize local-repo
 	if _, stderr, err := l.shell.Exec(ctx, l.absPath, "git init"); err != nil {
-		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git config user.name "%s"`, username); err != nil {
-		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git config user.email "%s"`, email); err != nil {
-		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git remote add origin "%s"`, remoteUrl); err != nil {
-		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	if sshKey != "" {
 		// git runs core.sshCommand through a shell, so the path is single-quoted instead of escaped
 		if strings.ContainsAny(sshKey, "'\n") {
-			return nil, fmt.Errorf("ssh key path must not contain a single quote or newline: %q", sshKey)
+			return nil, nil, fmt.Errorf("ssh key path must not contain a single quote or newline: %q", sshKey)
 		}
 		sshCommand := fmt.Sprintf("ssh -i '%s' -o IdentitiesOnly=yes", sshKey)
 		if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "config", "core.sshCommand", sshCommand); err != nil {
-			return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+			return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 		}
 	}
-	// Generate from skelton
+	lsCtx, cancel := context.WithTimeout(ctx, remoteCheckTimeout)
+	defer cancel()
+	branches, defaultBranch, err := l.RemoteBranches(lsCtx)
+	if err != nil {
+		// an unreachable remote must not block the first setup; the user sees it in Warnings
+		warning := fmt.Sprintf("could not reach the remote, so the existing branches were not checked: %v", err)
+		if err := l.createSkelton(); err != nil {
+			return nil, nil, err
+		}
+		return l, []string{warning}, nil
+	}
+	if len(branches) == 0 {
+		if err := l.createSkelton(); err != nil {
+			return nil, nil, err
+		}
+		return l, nil, nil
+	}
+	branch := pickBranch(branches, defaultBranch)
+	if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "fetch", "origin"); err != nil {
+		return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "checkout", "-B", branch, "origin/"+branch); err != nil {
+		return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	return l, nil, nil
+}
+
+func (l *LocalRepo) createSkelton() error {
 	f, err := config.SkeltonBytes()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	// Create isucontinuous.yaml to local-repo.
-	if err := l.CreateFile(isucontinuousFilename, f, 0644); err != nil {
-		return nil, err
+	return l.CreateFile(isucontinuousFilename, f, 0644)
+}
+
+// pickBranch prefers the branch HEAD of the remote points to; there is no branch flag on init, so master and main follow.
+func pickBranch(branches []string, defaultBranch string) string {
+	for _, want := range []string{defaultBranch, "master", "main"} {
+		for _, b := range branches {
+			if want != "" && b == want {
+				return b
+			}
+		}
 	}
-	return l, nil
+	return branches[0]
 }
 
 func AttachLocalRepo(logger *zap.Logger, e kexec.Interface, path string) (*LocalRepo, error) {

@@ -273,7 +273,7 @@ func TestInitLocalRepo_SshCommand(t *testing.T) {
 		if err := os.Mkdir(dir, 0755); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := InitLocalRepo(zaptest.NewLogger(t), kexec.New(), dir, "u", "u@example.com", "git@example.com:a/b.git", c.key); err != nil {
+		if _, _, err := InitLocalRepo(zaptest.NewLogger(t), kexec.New(), dir, "u", "u@example.com", "/nonexistent-remote", c.key); err != nil {
 			t.Fatal(err)
 		}
 		out, _ := exec.Command("git", "-C", dir, "config", "--local", "--get", "core.sshCommand").Output()
@@ -283,7 +283,7 @@ func TestInitLocalRepo_SshCommand(t *testing.T) {
 	}
 	dir := filepath.Join(t.TempDir(), "repo")
 	os.Mkdir(dir, 0755)
-	if _, err := InitLocalRepo(zaptest.NewLogger(t), kexec.New(), dir, "u", "e", "r", "/a'b"); err == nil {
+	if _, _, err := InitLocalRepo(zaptest.NewLogger(t), kexec.New(), dir, "u", "e", "/nonexistent-remote", "/a'b"); err == nil {
 		t.Error("a key path with a single quote must be rejected")
 	}
 }
@@ -414,4 +414,89 @@ func TestLocalRepo_Lock(t *testing.T) {
 		t.Fatalf("lock after unlock: %v", err)
 	}
 	unlock2()
+}
+
+func initFromRemote(t *testing.T, remote string) (*LocalRepo, []string, string) {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "repo")
+	if err := os.Mkdir(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	repo, warnings, err := InitLocalRepo(zaptest.NewLogger(t), kexec.New(), dir, "u", "u@example.com", remote, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return repo, warnings, dir
+}
+
+func TestInitLocalRepo_Bootstrap(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
+	newRemote := func(t *testing.T, branches ...string) string {
+		root := t.TempDir()
+		remote := filepath.Join(root, "remote.git")
+		runGit(t, root, "init", "--bare", "-b", "trunk", remote)
+		seed := filepath.Join(root, "seed")
+		runGit(t, root, "init", "-b", "trunk", seed)
+		os.WriteFile(filepath.Join(seed, "isucontinuous.yaml"), []byte("existing: true\n"), 0644)
+		runGit(t, seed, "add", "-A")
+		runGit(t, seed, "commit", "-m", "init")
+		runGit(t, seed, "remote", "add", "origin", remote)
+		for _, b := range branches {
+			runGit(t, seed, "push", "origin", "HEAD:refs/heads/"+b)
+		}
+		return remote
+	}
+	t.Run("empty remote creates the skelton", func(t *testing.T) {
+		_, warnings, dir := initFromRemote(t, newRemote(t))
+		if len(warnings) != 0 {
+			t.Errorf("warnings = %v", warnings)
+		}
+		if _, err := os.Stat(filepath.Join(dir, "isucontinuous.yaml")); err != nil {
+			t.Error(err)
+		}
+		if _, err := os.Stat(filepath.Join(dir, ".gitignore")); err == nil {
+			t.Error(".gitignore must not be created")
+		}
+	})
+	t.Run("existing branch is taken in", func(t *testing.T) {
+		_, warnings, dir := initFromRemote(t, newRemote(t, "master", "other"))
+		if len(warnings) != 0 {
+			t.Errorf("warnings = %v", warnings)
+		}
+		got, _ := os.ReadFile(filepath.Join(dir, "isucontinuous.yaml"))
+		if string(got) != "existing: true\n" {
+			t.Errorf("isucontinuous.yaml = %q", got)
+		}
+		if b := strings.TrimSpace(runGit(t, dir, "branch", "--show-current")); b != "master" {
+			t.Errorf("branch = %q, want master", b)
+		}
+		if out := runGit(t, dir, "status", "--porcelain"); out != "" {
+			t.Errorf("working tree is dirty: %q", out)
+		}
+	})
+	t.Run("remote HEAD wins over master", func(t *testing.T) {
+		_, _, dir := initFromRemote(t, newRemote(t, "trunk", "master"))
+		if b := strings.TrimSpace(runGit(t, dir, "branch", "--show-current")); b != "trunk" {
+			t.Errorf("branch = %q, want trunk", b)
+		}
+	})
+	t.Run("main when there is no master", func(t *testing.T) {
+		remote := newRemote(t, "main", "zzz")
+		runGit(t, remote, "symbolic-ref", "HEAD", "refs/heads/nonexistent")
+		_, _, dir := initFromRemote(t, remote)
+		if b := strings.TrimSpace(runGit(t, dir, "branch", "--show-current")); b != "main" {
+			t.Errorf("branch = %q, want main", b)
+		}
+	})
+	t.Run("unreachable remote warns and creates the skelton", func(t *testing.T) {
+		_, warnings, dir := initFromRemote(t, filepath.Join(t.TempDir(), "missing.git"))
+		if len(warnings) != 1 || !strings.Contains(warnings[0], "could not reach the remote") {
+			t.Errorf("warnings = %v", warnings)
+		}
+		if _, err := os.Stat(filepath.Join(dir, "isucontinuous.yaml")); err != nil {
+			t.Error(err)
+		}
+	})
 }
