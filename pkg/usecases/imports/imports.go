@@ -36,7 +36,7 @@ func NewImporters(logger *zap.Logger, hosts []config.Host) (map[string]*Importer
 				return nil, err
 			}
 		}
-		importers[host.Host] = new(logger, s)
+		importers[host.Name] = new(logger, s)
 	}
 	return importers, nil
 }
