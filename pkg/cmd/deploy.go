@@ -41,6 +41,11 @@ func RunDeploy(conf ConfigDeploy) (*DeployResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := repo.Lock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	newSlackClient := func(c *config.Config) slack.ClientIface {
 		return slack.NewClient(logger, conf.SlackToken, c.Slack.DefaultChannelId)
 	}

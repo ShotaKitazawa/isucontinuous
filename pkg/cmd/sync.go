@@ -29,6 +29,11 @@ func RunSync(conf ConfigSync) (*SyncResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := repo.Lock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	return runSync(conf, ctx, logger, repo)
 }
 

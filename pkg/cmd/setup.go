@@ -29,6 +29,11 @@ func RunSetup(conf ConfigSetup) (*SetupResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := repo.Lock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	// set installers
 	return runSetup(conf, ctx, logger, repo, install.NewInstallers, lock.NewLockers)
 }

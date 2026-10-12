@@ -32,6 +32,11 @@ func RunDiff(conf ConfigDiff) (*DiffResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := repo.Lock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	return runDiff(conf, ctx, logger, repo, deploy.NewDeployers)
 }
 

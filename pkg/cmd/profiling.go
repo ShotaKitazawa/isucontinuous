@@ -30,6 +30,11 @@ func RunProfiling(conf ConfigProfiling) (*ProfilingResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := repo.Lock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	// Set newProfilingersFunc
 
 	return runProfiling(conf, ctx, logger, repo, profiling.New, lock.NewLockers)

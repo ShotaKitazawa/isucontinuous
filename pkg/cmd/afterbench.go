@@ -34,6 +34,11 @@ func RunAfterBench(conf ConfigAfterBench) (*AfterBenchResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := repo.Lock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	// load isucontinuous.yaml
 	isucontinuous, err := repo.LoadConf()
 	if err != nil {
