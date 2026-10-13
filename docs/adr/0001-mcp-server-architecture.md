@@ -1,6 +1,6 @@
 ---
 status: accepted
-pr: nil
+pr: "#36"
 date: 2026-10-13
 related: [ADR-0002, ADR-0003, ADR-0009]
 ---
@@ -79,4 +79,14 @@ LLM が `deploy` → ベンチマーク → `profiling` → `afterbench` → 結
 
 ## 実装時に決めたこと
 
-(未実装)
+### ADR-0001-A: 土台
+
+実装済み: Reporter インタフェース (`ProgressReporter` / `RecordingReporter`)、各 `Run*` の型付き結果と `Warnings`、`pkg/errors.HostTask`。`mcp` サブコマンド、ツール公開、progress 通知は未実装。
+
+決めた未決事項:
+
+- `HostTask.Error()` は内側のメッセージをそのまま返す。ホスト・タスクを前置すると CLI のエラー出力が変わるため。文脈は `errors.As` で取り出す。
+- deploy の `hash:` / `message:` は結果に移したため、CLI ではプログレスバーの後に表示される (失敗時も取得済みなら表示)。
+- push の警告は stdout から stderr に変わった。afterbench の cleanup 失敗は、ログに加えて警告として stderr に出る。
+- 失敗時も取得済みの結果 (ホストごとの完了タスク、deploy の hash) は非 nil で返す。
+
