@@ -1,10 +1,13 @@
+---
+status: accepted
+pr: nil
+date: 2026-10-13
+related: [ADR-0003, ADR-0004, ADR-0005, ADR-0007]
+---
+
 # ADR-0006: local-repo の運用
 
-- 状態: Accepted (設計合意済み・未実装)
-- 日付: 2026-10-13
-- 関連: [0003](0003-host-lock.md), [0004](0004-host-configuration.md), [0005](0005-ssh-and-credentials.md), [0007](0007-drift-detection-and-deploy-plan.md)
-
-## 背景
+## 背景と課題
 
 local-repo は、isucontinuous を実行するマシン上にある git の clone である。従来は1台目のサーバ、今回の設計では各開発者の PC に、それぞれ存在することになる。
 
@@ -15,6 +18,14 @@ local-repo は、isucontinuous を実行するマシン上にある git の clon
 - `deploy` は fetch して revision を detached HEAD で checkout し、`filepath.WalkDir` で**ファイルシステムを走査**して配置する。
 - `sync` は、detached なら `git reset --hard` してから fetch し、ブランチに切り替える。
 - 2人目以降が `init` してから `sync` する手順は、`git checkout master` が「untracked working tree files would be overwritten」で失敗する (git の挙動を再現して確認)。
+
+## 検討した選択肢
+
+| 案 | 却下理由 |
+|---|---|
+| local-repo を開発用クローンと共用する | `deploy` の detached checkout が作業ツリーを壊す |
+| デプロイ前に未追跡ファイルを自動で消す | `import` の未コミットの結果を消してしまう |
+| 担当をツールで強制する | 3人の小さなチームでは、運用で足りる |
 
 ## 決定
 
@@ -48,14 +59,6 @@ local-repo は、isucontinuous を実行するマシン上にある git の clon
 | `sync` / `import` / `push` で checkout が変わると、`profiling` / `afterbench` が別の yaml・別の revision で動く | ロックの revision と HEAD が一致しなければ**エラー**にする |
 | 同じ PC で CLI と MCP、または複数セッションが同時に local-repo を操作する | local-repo 用の**ローカルロック**を置く。同一マシン上なので flock が適する |
 
-## 検討した代替案
-
-| 案 | 却下理由 |
-|---|---|
-| local-repo を開発用クローンと共用する | `deploy` の detached checkout が作業ツリーを壊す |
-| デプロイ前に未追跡ファイルを自動で消す | `import` の未コミットの結果を消してしまう |
-| 担当をツールで強制する | 3人の小さなチームでは、運用で足りる |
-
 ## 影響
 
 - 開発者は、local-repo と開発用クローンの2つを持つ。
@@ -63,5 +66,9 @@ local-repo は、isucontinuous を実行するマシン上にある git の clon
 
 ## 未決事項
 
-- ローカルロックのファイルの位置
-- 「クリーン」の判定の詳細 (無視されたファイルを含めるか)
+- [ ] ローカルロックのファイルの位置
+- [ ] 「クリーン」の判定の詳細 (無視されたファイルを含めるか)
+
+## 実装時に決めたこと
+
+(未実装)

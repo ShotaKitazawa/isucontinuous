@@ -1,7 +1,8 @@
 # Architecture Decision Records
 
 isucontinuous を LLM から利用できる形 (MCP サーバ化) にするための設計メモ。日本語で記述する。
-**いずれも設計合意のみで、実装は未着手。**
+書式は [`template.md`](template.md) に従う。運用の規則は [`AGENTS.md`](../../AGENTS.md) にある。
+各 ADR の状態 (`status`) と、実装に着手した PR (`pr`) は、各ファイルの front matter を参照する。
 
 ## 一覧
 

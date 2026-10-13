@@ -1,16 +1,27 @@
+---
+status: proposed
+pr: nil
+date: 2026-10-13
+related: [ADR-0001, ADR-0002, ADR-0003, ADR-0004, ADR-0006]
+---
+
 # ADR-0009: skill 設計
 
-- 状態: Proposed (骨子のみ。網羅的な内容は後日検討する)
-- 日付: 2026-10-13
-- 関連: [0001](0001-mcp-server-architecture.md), [0002](0002-notification-and-artifact-limits.md), [0003](0003-host-lock.md), [0004](0004-host-configuration.md), [0006](0006-local-repo-operation.md)
-
-## 背景
+## 背景と課題
 
 isucontinuous を MCP で公開しても、LLM が ISUCON を進めるには、ツールの使い方以外の知識が要る。そのうち次のものは、isucontinuous のコードではなく skill に置くのが適切である。
 
 - Playwright MCP など、isucontinuous の外側でしか得られないデータの扱い (ベンチマークの実行、スコア)
 - `isucontinuous.yaml` に書く値の知識 (alp、pt-query-digest、pprof のオプション)
 - 運用上の約束事 (ブランチ運用、`disabled` の戻し方)
+
+## 検討した選択肢
+
+| 案 | 却下理由 |
+|---|---|
+| すべての規則を skill に書く | skill は発動したときにしか読み込まれず、守らないと事故になる規則が漏れる |
+| 成果物の絞り込みをコードで行う | オプションは yaml の値で、実装ではない ([0002](0002-notification-and-artifact-limits.md)) |
+| 大会ごとの差分を skill に入れる | yaml・環境変数・prologue の役割 |
 
 ## 決定
 
@@ -61,16 +72,12 @@ references/
   setup.md               環境構築への参照
 ```
 
-## 検討した代替案
-
-| 案 | 却下理由 |
-|---|---|
-| すべての規則を skill に書く | skill は発動したときにしか読み込まれず、守らないと事故になる規則が漏れる |
-| 成果物の絞り込みをコードで行う | オプションは yaml の値で、実装ではない ([0002](0002-notification-and-artifact-limits.md)) |
-| 大会ごとの差分を skill に入れる | yaml・環境変数・prologue の役割 |
-
 ## 未決事項
 
-- skill の配置先 (本リポジトリか、別の場所か)
-- 実験記録の置き場所と形式
-- 網羅的な内容の検討 (後日)
+- [ ] skill の配置先 (本リポジトリか、別の場所か)
+- [ ] 実験記録の置き場所と形式
+- [ ] 網羅的な内容の検討 (後日)
+
+## 実装時に決めたこと
+
+(未実装)
