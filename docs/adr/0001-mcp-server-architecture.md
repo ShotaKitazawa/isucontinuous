@@ -75,7 +75,7 @@ LLM が `deploy` → ベンチマーク → `profiling` → `afterbench` → 結
 
 ## 未決事項
 
-- [ ] MCP のトランスポートの詳細 (ローカル PC 上でクライアントが起動する前提)
+- [x] MCP のトランスポートの詳細 (ローカル PC 上でクライアントが起動する前提。ADR-0001-B で決定)
 
 ## 実装時に決めたこと
 
@@ -89,4 +89,19 @@ LLM が `deploy` → ベンチマーク → `profiling` → `afterbench` → 結
 - deploy の `hash:` / `message:` は結果に移したため、CLI ではプログレスバーの後に表示される (失敗時も取得済みなら表示)。
 - push の警告は stdout から stderr に変わった。afterbench の cleanup 失敗は、ログに加えて警告として stderr に出る。
 - 失敗時も取得済みの結果 (ホストごとの完了タスク、deploy の hash) は非 nil で返す。
+
+### ADR-0001-B: MCP サーバ本体
+
+実装済み: `isucontinuous mcp` (`cmd/mcp.go`、実装は `pkg/mcpserver`)、11 ツールの公開、progress 通知。
+
+決めた未決事項:
+
+- トランスポートは stdio のみ。公式 SDK `github.com/modelcontextprotocol/go-sdk` の `v1.3.1` を使う (Go 1.23.0 が最小の v1 系)。go.mod の `go` を `1.23.0` に上げた。
+- ログは標準出力に出さず、既存の `--logfile` のファイルにのみ書く。`mcp` では「output log to」の表示も出さない。
+- Slack トークンは引数にせず、環境変数 `SLACK_TOKEN` から読む。LLM の入力に載せないため。
+- 公開しない: `forget`、`sync` の `force`。`setup` と `import` には、CLI と同じく `force` を付けない ([0003](0003-host-lock.md))。
+- 結果は `pkg/cmd` の型付き構造体 (`Warnings` を含む) をそのまま返す。エラーは `isError` の結果にし、本文に `kind` (Go の型名)・`host`・`task`・`message` を JSON で載せる。途中までの結果も構造化データとして返す。
+- progress は、クライアントが progress token を渡したときだけ通知する。タスクの開始と完了を 1 件ずつ数え、total は ホスト数×タスク数×2 とする。token がないときは何も出さない (既定の `pb` は標準出力に描画し、stdio を壊すため)。
+- ロックの所有者は `ConfigCommon.Owner` の既定 (`user@host`) のままにする。
+- `v1.3.1` の `CallToolParams.SetProgressToken` は `Meta` が nil だと token を保存しない。サーバ側の処理には影響しないため、テストでは `Meta` を直接設定する。
 
