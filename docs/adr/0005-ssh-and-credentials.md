@@ -1,6 +1,6 @@
 ---
 status: accepted
-pr: nil
+pr: "#38"
 date: 2026-10-13
 related: [ADR-0004, ADR-0006]
 ---
@@ -66,10 +66,13 @@ isucon-tare の運用では、1台目の root で生成した鍵を、GitHub の
 
 ## 未決事項
 
-- [ ] `init` に渡す鍵パスの引数名
-- [ ] 専用 known_hosts のパス
-- [ ] ホスト鍵の不一致を人間が解除するためのコマンド名
+- [x] `init` に渡す鍵パスの引数名
+- [x] 専用 known_hosts のパス
+- [x] ホスト鍵の不一致を人間が解除するためのコマンド名
 
 ## 実装時に決めたこと
 
-(未実装)
+- `init` に渡す鍵パスの引数名: `--ssh-key` (環境変数 `SSH_KEY`)。未指定のときは `core.sshCommand` を設定しない。
+- 専用 known_hosts のパス: 既定は `$HOME/.isucontinuous_known_hosts`。ルートのフラグ `--known-hosts` (環境変数 `KNOWN_HOSTS`) で上書きできる。
+- ホスト鍵の不一致を人間が解除するためのコマンド名: `isucontinuous forget <host[:port]>`。CLI のみに置き、MCP からは呼べない。
+
