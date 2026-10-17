@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -38,7 +39,8 @@ func NewSshClient(host string, port int, user, password, keyfile string) (*SshCl
 			Auth: []ssh.AuthMethod{
 				ssh.PublicKeys(signer),
 			},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			HostKeyCallback: tofuHostKeyCallback(),
+			Timeout:         sshConnectTimeout * time.Second,
 		}
 	case password != "":
 		config = ssh.ClientConfig{
@@ -46,7 +48,8 @@ func NewSshClient(host string, port int, user, password, keyfile string) (*SshCl
 			Auth: []ssh.AuthMethod{
 				ssh.Password(password),
 			},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			HostKeyCallback: tofuHostKeyCallback(),
+			Timeout:         sshConnectTimeout * time.Second,
 		}
 	default:
 		return nil, fmt.Errorf("neither password nor publicKey was specified")

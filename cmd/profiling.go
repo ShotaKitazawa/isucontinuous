@@ -19,9 +19,10 @@ var profilingCmd = &cobra.Command{
 		executed = true
 		conf := cmd.ConfigProfiling{
 			ConfigCommon: cmd.ConfigCommon{
-				LogLevel:      logLevel,
-				LogFilename:   logfile,
-				LocalRepoPath: localRepo,
+				LogLevel:       logLevel,
+				LogFilename:    logfile,
+				LocalRepoPath:  localRepo,
+				KnownHostsPath: knownHosts,
 			},
 		}
 		r, err := cmd.RunProfiling(conf)

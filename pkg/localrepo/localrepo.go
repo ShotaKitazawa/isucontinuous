@@ -38,6 +38,7 @@ type PushResult struct {
 type LocalRepoIface interface {
 	LoadConf() (*config.Config, error)
 	HasDisabledHost() (bool, error)
+	HasPlaintextPassword() (bool, error)
 	CreateFile(name string, data []byte, perm os.FileMode) error
 	Fetch(ctx context.Context) error
 	SwitchAndMerge(ctx context.Context, branch string) error
@@ -60,7 +61,7 @@ type LocalRepo struct {
 	absPath string
 }
 
-func InitLocalRepo(logger *zap.Logger, e kexec.Interface, path, username, email, remoteUrl string) (*LocalRepo, error) {
+func InitLocalRepo(logger *zap.Logger, e kexec.Interface, path, username, email, remoteUrl, sshKey string) (*LocalRepo, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -79,6 +80,16 @@ func InitLocalRepo(logger *zap.Logger, e kexec.Interface, path, username, email,
 	}
 	if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git remote add origin "%s"`, remoteUrl); err != nil {
 		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	if sshKey != "" {
+		// git runs core.sshCommand through a shell, so the path is single-quoted instead of escaped
+		if strings.ContainsAny(sshKey, "'\n") {
+			return nil, fmt.Errorf("ssh key path must not contain a single quote or newline: %q", sshKey)
+		}
+		sshCommand := fmt.Sprintf("ssh -i '%s' -o IdentitiesOnly=yes", sshKey)
+		if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "config", "core.sshCommand", sshCommand); err != nil {
+			return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		}
 	}
 	// Generate from skelton
 	f, err := config.SkeltonBytes()
@@ -123,6 +134,14 @@ func (l *LocalRepo) HasDisabledHost() (bool, error) {
 		return false, err
 	}
 	return config.HasDisabledHost(f)
+}
+
+func (l *LocalRepo) HasPlaintextPassword() (bool, error) {
+	f, err := os.ReadFile(filepath.Join(l.absPath, isucontinuousFilename))
+	if err != nil {
+		return false, err
+	}
+	return config.HasPlaintextPassword(f)
 }
 
 func (l *LocalRepo) CreateFile(name string, data []byte, perm os.FileMode) error {

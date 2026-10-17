@@ -17,6 +17,7 @@ type ConfigInit struct {
 	GitUsername  string
 	GitEmail     string
 	GitRemoteUrl string
+	SshKey       string
 }
 
 func RunInit(conf ConfigInit) (*InitResult, error) {
@@ -39,7 +40,7 @@ func runInit(conf ConfigInit, ctx context.Context, logger *zap.Logger) (*InitRes
 		return nil, err
 	}
 	// Initialize local-repo
-	_, err := localrepo.InitLocalRepo(logger, exec.New(), conf.LocalRepoPath, conf.GitUsername, conf.GitEmail, conf.GitRemoteUrl)
+	_, err := localrepo.InitLocalRepo(logger, exec.New(), conf.LocalRepoPath, conf.GitUsername, conf.GitEmail, conf.GitRemoteUrl, conf.SshKey)
 	if err != nil {
 		return nil, err
 	}

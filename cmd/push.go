@@ -18,9 +18,10 @@ var pushCmd = &cobra.Command{
 		executed = true
 		conf := cmd.ConfigPush{
 			ConfigCommon: cmd.ConfigCommon{
-				LogLevel:      logLevel,
-				LogFilename:   logfile,
-				LocalRepoPath: localRepo,
+				LogLevel:       logLevel,
+				LogFilename:    logfile,
+				LocalRepoPath:  localRepo,
+				KnownHostsPath: knownHosts,
 			},
 			GitBranch: pushGitBranch,
 			Message:   pushMessage,

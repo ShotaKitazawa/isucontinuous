@@ -17,13 +17,15 @@ var initCmd = &cobra.Command{
 		executed = true
 		conf := cmd.ConfigInit{
 			ConfigCommon: cmd.ConfigCommon{
-				LogLevel:      logLevel,
-				LogFilename:   logfile,
-				LocalRepoPath: localRepo,
+				LogLevel:       logLevel,
+				LogFilename:    logfile,
+				LocalRepoPath:  localRepo,
+				KnownHostsPath: knownHosts,
 			},
 			GitUsername:  gitUsername,
 			GitEmail:     gitEmail,
 			GitRemoteUrl: gitRemoteUrl,
+			SshKey:       sshKey,
 		}
 		_, err := cmd.RunInit(conf)
 		return err
@@ -34,6 +36,7 @@ var (
 	gitUsername  string
 	gitEmail     string
 	gitRemoteUrl string
+	sshKey       string
 )
 
 func init() {
@@ -45,5 +48,7 @@ func init() {
 		"email of GitHub Account")
 	initCmd.PersistentFlags().StringVarP(&gitRemoteUrl, "remote-url", "r", getenvDefault("REMOTE_URL", ""),
 		"URL of remote repository (requirement)")
+	initCmd.PersistentFlags().StringVar(&sshKey, "ssh-key", getenvDefault("SSH_KEY", ""),
+		"path of the deploy key used by git in local-repo (core.sshCommand is not set if empty)")
 	setRequired(initCmd, "remote-url")
 }

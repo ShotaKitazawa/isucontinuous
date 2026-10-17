@@ -8,6 +8,7 @@ import (
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/install"
 )
 
@@ -21,6 +22,7 @@ func RunSetup(conf ConfigSetup) (*SetupResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	shell.SetKnownHostsPath(conf.KnownHostsPath)
 	// Attach local isucon-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
 	if err != nil {
@@ -81,5 +83,5 @@ func runSetup(
 			return nil
 		},
 	}})
-	return &SetupResult{Result{Hosts: hosts}}, err
+	return &SetupResult{Result{Hosts: hosts, Warnings: isucontinuous.Warnings}}, err
 }

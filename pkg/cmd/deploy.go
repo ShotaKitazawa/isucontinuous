@@ -9,6 +9,7 @@ import (
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/slack"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/template"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/deploy"
@@ -27,6 +28,7 @@ func RunDeploy(conf ConfigDeploy) (*DeployResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	shell.SetKnownHostsPath(conf.KnownHostsPath)
 	// Attach local-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
 	if err != nil {
@@ -73,6 +75,7 @@ func runDeploy(
 		return nil, err
 	}
 	result := &DeployResult{Revision: conf.GitRevision, Hash: hash, Message: msg}
+	result.Warnings = isucontinuous.Warnings
 	// Set deployers
 	deployers, err := newDeployersFunc(logger, template.New(conf.GitRevision), conf.LocalRepoPath, isucontinuous.Hosts)
 	if err != nil {

@@ -18,9 +18,10 @@ var deployCmd = &cobra.Command{
 		executed = true
 		conf := cmd.ConfigDeploy{
 			ConfigCommon: cmd.ConfigCommon{
-				LogLevel:      logLevel,
-				LogFilename:   logfile,
-				LocalRepoPath: localRepo,
+				LogLevel:       logLevel,
+				LogFilename:    logfile,
+				LocalRepoPath:  localRepo,
+				KnownHostsPath: knownHosts,
 			},
 			GitRevision: deployGitRevision,
 			Force:       deployForce,

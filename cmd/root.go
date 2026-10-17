@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -33,9 +34,10 @@ func Execute() {
 }
 
 var (
-	logLevel  string
-	logfile   string
-	localRepo string
+	logLevel   string
+	logfile    string
+	localRepo  string
+	knownHosts string
 )
 
 func init() {
@@ -48,6 +50,8 @@ func init() {
 	defaultLocalRepo := filepath.Join(os.Getenv("HOME"), "local-repo")
 	rootCmd.PersistentFlags().StringVarP(&localRepo, "local-repo", "l", getenvDefault("LOCAL_REPO", defaultLocalRepo),
 		"local repository's path managed by isucontinuous")
+	rootCmd.PersistentFlags().StringVar(&knownHosts, "known-hosts", getenvDefault("KNOWN_HOSTS", shell.DefaultKnownHostsPath()),
+		"path of the known_hosts file dedicated to isucontinuous")
 }
 
 // utils

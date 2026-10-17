@@ -11,6 +11,7 @@ import (
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/imports"
 )
 
@@ -24,6 +25,7 @@ func RunImport(conf ConfigImport) (*ImportResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	shell.SetKnownHostsPath(conf.KnownHostsPath)
 	// Attach local isucon-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
 	if err != nil {
@@ -93,5 +95,5 @@ func runImport(
 			return nil
 		},
 	}})
-	return &ImportResult{Result{Hosts: hosts}}, err
+	return &ImportResult{Result{Hosts: hosts, Warnings: isucontinuous.Warnings}}, err
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/template"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/profiling"
 )
@@ -23,6 +24,7 @@ func RunProfiling(conf ConfigProfiling) (*ProfilingResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	shell.SetKnownHostsPath(conf.KnownHostsPath)
 	// Attach local-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
 	if err != nil {
@@ -63,5 +65,5 @@ func runProfiling(
 			return nil
 		},
 	}})
-	return &ProfilingResult{Result{Hosts: hosts}}, err
+	return &ProfilingResult{Result{Hosts: hosts, Warnings: isucontinuous.Warnings}}, err
 }
