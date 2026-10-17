@@ -88,6 +88,26 @@ func TestLoad(t *testing.T) {
 		}
 	})
 
+	t.Run("disabled hosts are kept for release and status", func(t *testing.T) {
+		t.Setenv("LOAD_TEST_HOST", "192.0.2.10")
+		conf, err := Load([]byte("hosts:\n" +
+			"- host: '{{.Env.LOAD_TEST_NOT_SET}}'\n  name: unresolved\n  disabled: true\n" +
+			"- host: '{{.Env.LOAD_TEST_HOST}}'\n  disabled: true\n" +
+			"- host: 192.0.2.1\n"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(conf.Disabled) != 2 {
+			t.Fatalf("Disabled = %+v", conf.Disabled)
+		}
+		if d := conf.Disabled[0]; d.Name != "unresolved" || d.Err == nil {
+			t.Errorf("Disabled[0] = %+v", d)
+		}
+		if d := conf.Disabled[1]; d.Name != "192.0.2.10" || d.Err != nil || d.Host.Host != "192.0.2.10" {
+			t.Errorf("Disabled[1] = %+v", d)
+		}
+	})
+
 	t.Run("git revision is allowed in commands", func(t *testing.T) {
 		_, err := Load([]byte("hosts:\n- host: 192.0.2.1\n  profiling:\n    command: 'echo {{.Git.Revision}}'\n  after_bench:\n    target: /p/{{.Git.Revision}}\n"))
 		if err != nil {

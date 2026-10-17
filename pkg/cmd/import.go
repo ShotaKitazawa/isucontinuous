@@ -13,6 +13,7 @@ import (
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/imports"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/lock"
 )
 
 type ConfigImport struct {
@@ -31,12 +32,12 @@ func RunImport(conf ConfigImport) (*ImportResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	return runImport(conf, ctx, logger, repo, imports.NewImporters)
+	return runImport(conf, ctx, logger, repo, imports.NewImporters, lock.NewLockers)
 }
 
 func runImport(
 	conf ConfigImport, ctx context.Context, logger *zap.Logger,
-	repo localrepo.LocalRepoIface, newImporters imports.NewImportersFunc,
+	repo localrepo.LocalRepoIface, newImporters imports.NewImportersFunc, newLockersFunc lock.NewLockersFunc,
 ) (*ImportResult, error) {
 	logger.Info("start import")
 	defer func() { logger.Info("finish import") }()
@@ -49,6 +50,12 @@ func runImport(
 	if err != nil {
 		return nil, err
 	}
+	// Importing while someone else experiments would take in a half-changed state
+	unlock, err := lockForCommand(ctx, logger, conf.ConfigCommon, repo, newLockersFunc, isucontinuous.Hosts, "import")
+	if err != nil {
+		return &ImportResult{Result{Warnings: isucontinuous.Warnings}}, err
+	}
+	defer unlock()
 	// Set importers
 	importers, err := newImporters(logger, isucontinuous.Hosts)
 	if err != nil {

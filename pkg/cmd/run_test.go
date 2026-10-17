@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -14,23 +13,25 @@ import (
 	"go.uber.org/zap/zaptest"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/hoststate"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	mock_shell "github.com/ShotaKitazawa/isucontinuous/pkg/shell/mock"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/slack"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/template"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/deploy"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/lock"
 )
 
 type fakeRepo struct {
 	localrepo.LocalRepoIface
 	branch   string
-	revision string
 	pushed   *localrepo.PushResult
 	conf     *config.Config
 	disabled bool
 	plain    bool
 	calls    []string
+	shown    map[string][]byte
 }
 
 func (f *fakeRepo) CurrentBranch(ctx context.Context) (string, error) { return f.branch, nil }
@@ -46,19 +47,13 @@ func (f *fakeRepo) SwitchDetachedBranch(ctx context.Context, r string) error {
 	f.calls = append(f.calls, "switch")
 	return nil
 }
-func (f *fakeRepo) GetRevision(ctx context.Context) (string, error) {
-	if f.revision == "" {
-		return "", errors.New("not found")
-	}
-	return f.revision, nil
-}
-func (f *fakeRepo) SetRevision(ctx context.Context, r string) error {
-	f.revision = r
-	return nil
-}
 func (f *fakeRepo) ResolveRevision(ctx context.Context, r string) (string, error) {
 	f.calls = append(f.calls, "resolve:"+r)
 	return "0123456789abcdef0123456789abcdef01234567", nil
+}
+func (f *fakeRepo) ShowFile(ctx context.Context, hash, path string) ([]byte, bool, error) {
+	content, ok := f.shown[path]
+	return content, ok, nil
 }
 func (f *fakeRepo) GetHeadInfo(ctx context.Context) (string, string, error) {
 	return "abc1234", "message", nil
@@ -143,7 +138,7 @@ func TestRunDeploy_Result(t *testing.T) {
 	var res *DeployResult
 	var err error
 	assertNoStdout(t, func() {
-		res, err = runDeploy(conf, context.Background(), zaptest.NewLogger(t), repo, newSlackClient, newDeployers)
+		res, err = runDeploy(conf, context.Background(), zaptest.NewLogger(t), repo, newSlackClient, newDeployers, lockersWith(nil))
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -151,11 +146,18 @@ func TestRunDeploy_Result(t *testing.T) {
 	if res.Hash != "abc1234" || res.Message != "message" || res.Revision != "master" {
 		t.Errorf("result = %+v", res)
 	}
-	if repo.revision != "master" {
-		t.Errorf("revision = %q, want master", repo.revision)
-	}
 	if want := "switch,slack"; strings.Join(repo.calls, ",") != want {
 		t.Errorf("calls = %v, want %s", repo.calls, want)
+	}
+}
+
+func lockersWith(shells map[string]*hoststate.FakeShell) lock.NewLockersFunc {
+	return func(l *zap.Logger, _ []config.Host) (map[string]*lock.Locker, error) {
+		lockers := make(map[string]*lock.Locker)
+		for name, s := range shells {
+			lockers[name] = lock.NewWithShell(l, s)
+		}
+		return lockers, nil
 	}
 }
 
@@ -179,11 +181,12 @@ func TestRunDeploy_RecordsRevision(t *testing.T) {
 	m.EXPECT().Execf(gomock.Any(), "", `rm -f %s`, "'/tmp/isucontinuous/last-revision'").
 		Return(bytes.Buffer{}, bytes.Buffer{}, nil)
 	repo := &fakeRepo{conf: &config.Config{Hosts: []config.Host{{Name: "web01", Host: "10.0.0.1"}}}}
-	conf := ConfigDeploy{GitRevision: "master"}
+	conf := ConfigDeploy{GitRevision: "master", IgnoreDrift: true}
 	conf.Reporter = NewRecordingReporter()
 	newSlackClient := func(*config.Config) slack.ClientIface { return slack.NewFakeClient(zap.NewNop()) }
 	assertNoStdout(t, func() {
-		if _, err := runDeploy(conf, ctx, zaptest.NewLogger(t), repo, newSlackClient, deployersWith(m, "web01")); err != nil {
+		if _, err := runDeploy(conf, ctx, zaptest.NewLogger(t), repo, newSlackClient, deployersWith(m, "web01"),
+			lockersWith(map[string]*hoststate.FakeShell{"web01": hoststate.NewFakeShell("10.0.0.1")})); err != nil {
 			t.Fatal(err)
 		}
 	})

@@ -10,6 +10,7 @@ import (
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/hoststate"
 )
 
 type ConfigCommon struct {
@@ -18,6 +19,15 @@ type ConfigCommon struct {
 	LocalRepoPath  string
 	KnownHostsPath string
 	Reporter       Reporter
+	// Owner identifies the holder of host locks; empty means user@host of this machine.
+	Owner string
+}
+
+func (c ConfigCommon) owner() (string, error) {
+	if c.Owner != "" {
+		return c.Owner, nil
+	}
+	return hoststate.CurrentOwner()
 }
 
 func (c ConfigCommon) reporter() Reporter {

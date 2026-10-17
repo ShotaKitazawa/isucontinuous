@@ -5,6 +5,9 @@ type Config struct {
 	Slack Slack  `yaml:"slack,omitempty"`
 	Hosts []Host `yaml:"hosts,omitempty"`
 
+	// Disabled holds the hosts that Load dropped, so that commands which clean up (release, status) can still reach them.
+	Disabled []DisabledHost `yaml:"-"`
+
 	// Warnings is filled by Load and never read from yaml.
 	Warnings []string `yaml:"-"`
 }
@@ -104,4 +107,11 @@ type AfterBench struct {
 	SlackChannelId string `yaml:"slack_channel_id,omitempty"`
 	Target         string `yaml:"target,omitempty"`
 	Command        string `yaml:"command,omitempty"`
+}
+
+// DisabledHost is a host with `disabled: true`. Host is usable only if Err is nil.
+type DisabledHost struct {
+	Name string
+	Host Host
+	Err  error
 }

@@ -25,6 +25,7 @@ func Load(data []byte) (*Config, error) {
 	names := make(map[string]int)
 	for idx, host := range conf.Hosts {
 		if host.Disabled {
+			conf.Disabled = append(conf.Disabled, resolveDisabled(templator, host))
 			continue
 		}
 		rawPassword := host.Password
@@ -50,6 +51,19 @@ func Load(data []byte) (*Config, error) {
 	}
 	conf.Hosts = hosts
 	return conf, nil
+}
+
+// resolveDisabled does not fail when the environment variables of a disabled host are unset.
+func resolveDisabled(t *template.Templator, host Host) DisabledHost {
+	resolved, err := resolveHost(t, host)
+	if err != nil {
+		name := host.Name
+		if name == "" {
+			name = host.Host
+		}
+		return DisabledHost{Name: name, Host: host, Err: err}
+	}
+	return DisabledHost{Name: resolved.Name, Host: resolved}
 }
 
 // HasDisabledHost reads only the disabled flags so that it works without the environment variables of the hosts.

@@ -57,3 +57,37 @@ func printDiffResult(w io.Writer, r *cmd.DiffResult, showDiff bool) {
 		}
 	}
 }
+
+func printReleaseResult(w io.Writer, r *cmd.ReleaseResult) {
+	if r == nil {
+		return
+	}
+	for _, h := range r.Releases {
+		if h.State == cmd.ReleaseHeldByOther {
+			fmt.Fprintf(w, "%s: %s: %s (use --force to release)\n", h.Host, h.State, h.Holder.Describe())
+			continue
+		}
+		fmt.Fprintf(w, "%s: %s\n", h.Host, h.State)
+	}
+}
+
+func printStatusResult(w io.Writer, r *cmd.StatusResult) {
+	if r == nil {
+		return
+	}
+	for _, h := range r.Statuses {
+		if h.Disabled {
+			fmt.Fprintf(w, "%s: disabled\n", h.Host)
+			continue
+		}
+		lock := "unlocked"
+		if h.Lock != nil {
+			lock = "locked by " + h.Lock.Describe()
+		}
+		last := "none recorded"
+		if h.LastRevision != "" {
+			last = fmt.Sprintf("%.12s", h.LastRevision)
+		}
+		fmt.Fprintf(w, "%s: %s; last deployed revision: %s\n", h.Host, lock, last)
+	}
+}

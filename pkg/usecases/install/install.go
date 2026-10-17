@@ -28,7 +28,7 @@ func NewInstallers(logger *zap.Logger, hosts []config.Host) (map[string]*Install
 				return nil, err
 			}
 		}
-		installers[host.Host] = new(logger, s)
+		installers[host.Name] = new(logger, s)
 	}
 	return installers, nil
 }
