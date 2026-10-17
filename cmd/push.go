@@ -21,6 +21,7 @@ var pushCmd = &cobra.Command{
 				LocalRepoPath: localRepo,
 			},
 			GitBranch: pushGitBranch,
+			Message:   pushMessage,
 		}
 		return cmd.RunPush(conf)
 	},
@@ -28,10 +29,13 @@ var pushCmd = &cobra.Command{
 
 var (
 	pushGitBranch string
+	pushMessage   string
 )
 
 func init() {
 	rootCmd.AddCommand(pushCmd)
 	pushCmd.PersistentFlags().StringVarP(&pushGitBranch, "branch", "b", "master",
 		"branch-name to push to Git remote-repo")
+	pushCmd.PersistentFlags().StringVarP(&pushMessage, "message", "m", "",
+		"commit message (default: \"commit by isucontinuous\")")
 }

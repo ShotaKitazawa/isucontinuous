@@ -3,12 +3,14 @@ package localrepo
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
-	"k8s.io/utils/exec"
+	kexec "k8s.io/utils/exec"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
@@ -18,7 +20,21 @@ import (
 const (
 	isucontinuousFilename = "isucontinuous.yaml"
 	revisionStoreFilename = ".revision"
+	defaultCommitMessage  = "commit by isucontinuous"
+	// large files are warned, not blocked: the repository is disposable and GitHub rejects >100MB itself
+	largeFileThreshold = 1 << 20
 )
+
+type PushedFile struct {
+	Path    string
+	Size    int64
+	Deleted bool
+}
+
+type PushResult struct {
+	Files    []PushedFile
+	Warnings []string
+}
 
 type LocalRepoIface interface {
 	LoadConf() (*config.Config, error)
@@ -26,7 +42,7 @@ type LocalRepoIface interface {
 	Fetch(ctx context.Context) error
 	SwitchAndMerge(ctx context.Context, branch string) error
 	SwitchDetachedBranch(ctx context.Context, revision string) error
-	Push(ctx context.Context) error
+	Push(ctx context.Context, message string) (*PushResult, error)
 	CurrentBranch(ctx context.Context) (string, error)
 	IsFirstCommit(ctx context.Context) (bool, error)
 	DiffWithRemote(ctx context.Context) (bool, error)
@@ -44,7 +60,7 @@ type LocalRepo struct {
 	absPath string
 }
 
-func InitLocalRepo(logger *zap.Logger, e exec.Interface, path, username, email, remoteUrl string) (*LocalRepo, error) {
+func InitLocalRepo(logger *zap.Logger, e kexec.Interface, path, username, email, remoteUrl string) (*LocalRepo, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -80,7 +96,7 @@ func InitLocalRepo(logger *zap.Logger, e exec.Interface, path, username, email, 
 	return l, nil
 }
 
-func AttachLocalRepo(logger *zap.Logger, e exec.Interface, path string) (*LocalRepo, error) {
+func AttachLocalRepo(logger *zap.Logger, e kexec.Interface, path string) (*LocalRepo, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -124,24 +140,27 @@ func (l *LocalRepo) Fetch(ctx context.Context) error {
 }
 
 func (l *LocalRepo) SwitchAndMerge(ctx context.Context, branch string) error {
+	if err := validateRef(branch); err != nil {
+		return err
+	}
 	// get current branch name
 	currentBranch, err := l.CurrentBranch(ctx)
 	if err != nil && !errors.As(err, &myerrors.GitBranchIsDetached{}) {
 		return err
 	}
 	// check to exist
-	if _, _, err := l.shell.Exec(ctx, l.absPath, `git branch --format="%(refname:short)" | grep -e ^`+branch+`$`); err != nil {
+	if _, _, err := l.shell.ExecArgs(ctx, l.absPath, "git", "rev-parse", "--verify", "--quiet", "refs/heads/"+branch); err != nil {
 		// checkout only
-		if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git checkout %s`, branch); err != nil {
+		if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "checkout", branch); err != nil {
 			return myerrors.NewErrorCommandExecutionFailed(stderr)
 		}
 	} else {
 		if currentBranch != branch {
 			// checkout & merge
-			if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git checkout %s`, branch); err != nil {
+			if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "checkout", branch); err != nil {
 				return myerrors.NewErrorCommandExecutionFailed(stderr)
 			}
-			if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git merge origin/%s`, branch); err != nil {
+			if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "merge", "origin/"+branch); err != nil {
 				return myerrors.NewErrorCommandExecutionFailed(stderr)
 			}
 			return nil
@@ -151,23 +170,74 @@ func (l *LocalRepo) SwitchAndMerge(ctx context.Context, branch string) error {
 }
 
 func (l *LocalRepo) SwitchDetachedBranch(ctx context.Context, revision string) error {
-	if _, stderr, err := l.shell.Execf(ctx, l.absPath, "git checkout -d remotes/origin/%s || git checkout -d %s", revision, revision); err != nil {
+	if err := validateRef(revision); err != nil {
+		return err
+	}
+	if _, _, err := l.shell.ExecArgs(ctx, l.absPath, "git", "checkout", "-d", "remotes/origin/"+revision); err == nil {
+		return nil
+	}
+	if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "checkout", "-d", revision); err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	return nil
 }
 
-func (l *LocalRepo) Push(ctx context.Context) error {
+func (l *LocalRepo) Push(ctx context.Context, message string) (*PushResult, error) {
+	if message == "" {
+		message = defaultCommitMessage
+	}
+	result := &PushResult{}
 	if _, stderr, err := l.shell.Exec(ctx, l.absPath, `git add -A`); err != nil {
-		return myerrors.NewErrorCommandExecutionFailed(stderr)
+		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	if _, _, err := l.shell.Exec(ctx, l.absPath, `git commit -m "commit by isucontinuous"`); err != nil {
-		l.log.Info("failed `git commit`: no commit files")
+	// exit status 1 means that there are staged changes
+	_, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "diff", "--cached", "--quiet")
+	var exitErr kexec.ExitError
+	if err != nil {
+		if !errors.As(err, &exitErr) || exitErr.ExitStatus() != 1 {
+			return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		}
+		files, err := l.stagedFiles(ctx)
+		if err != nil {
+			return nil, err
+		}
+		result.Files = files
+		for _, f := range files {
+			if f.Size >= largeFileThreshold {
+				result.Warnings = append(result.Warnings,
+					fmt.Sprintf("%s is large (%d bytes)", f.Path, f.Size))
+			}
+		}
+		if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "commit", "-m", message); err != nil {
+			return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		}
 	}
-	if _, _, err := l.shell.Exec(ctx, l.absPath, `git push origin HEAD`); err != nil {
-		l.log.Info("failed `git push`: no push commits")
+	if _, stderr, err := l.shell.Exec(ctx, l.absPath, `git push origin HEAD`); err != nil {
+		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	return nil
+	return result, nil
+}
+
+func (l *LocalRepo) stagedFiles(ctx context.Context) ([]PushedFile, error) {
+	stdout, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "diff", "--cached", "--name-only", "-z")
+	if err != nil {
+		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	files := []PushedFile{}
+	for _, name := range strings.Split(stdout.String(), "\x00") {
+		if name == "" {
+			continue
+		}
+		info, err := os.Stat(filepath.Join(l.absPath, name))
+		if os.IsNotExist(err) {
+			files = append(files, PushedFile{Path: name, Deleted: true})
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+		files = append(files, PushedFile{Path: name, Size: info.Size()})
+	}
+	return files, nil
 }
 
 func (l *LocalRepo) CurrentBranch(ctx context.Context) (string, error) {
@@ -197,7 +267,7 @@ func (l *LocalRepo) DiffWithRemote(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if stdout, stderr, err := l.shell.Execf(ctx, l.absPath, "git diff origin/%s %s", currentBranch, currentBranch); err != nil {
+	if stdout, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "diff", "origin/"+currentBranch, currentBranch, "--"); err != nil {
 		if isFirstCommit, _ := l.IsFirstCommit(ctx); isFirstCommit {
 			return false, myerrors.NewErrorGitBranchIsFirstCommit()
 		}
@@ -243,4 +313,26 @@ func (l *LocalRepo) GetHeadInfo(ctx context.Context) (string, string, error) {
 	}
 	msg := stdout.String()
 	return hash, msg, nil
+}
+
+// validateRef follows git check-ref-format; revision expressions such as HEAD~1 are rejected on purpose.
+func validateRef(ref string) error {
+	invalid := func() error { return fmt.Errorf("invalid git ref name: %q", ref) }
+	if ref == "" || ref == "@" || strings.HasPrefix(ref, "-") ||
+		strings.HasPrefix(ref, "/") || strings.HasSuffix(ref, "/") ||
+		strings.HasSuffix(ref, ".") || strings.Contains(ref, "..") ||
+		strings.Contains(ref, "//") || strings.Contains(ref, "@{") {
+		return invalid()
+	}
+	for _, r := range ref {
+		if r < 0x20 || r == 0x7f || strings.ContainsRune(" ~^:?*[\\", r) {
+			return invalid()
+		}
+	}
+	for _, c := range strings.Split(ref, "/") {
+		if strings.HasPrefix(c, ".") || strings.HasSuffix(c, ".lock") {
+			return invalid()
+		}
+	}
+	return nil
 }

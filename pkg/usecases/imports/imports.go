@@ -2,6 +2,7 @@ package imports
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -73,11 +74,19 @@ func (l *Importer) GetFileContent(ctx context.Context, path string) ([]byte, os.
 	if err != nil {
 		return nil, 0, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	mode, err := strconv.Atoi(stdout.String())
+	mode, err := parseFileMode(stdout.String())
 	if err != nil {
 		return nil, 0, err
 	}
-	return content, os.FileMode(mode), nil
+	return content, mode, nil
+}
+
+func parseFileMode(s string) (os.FileMode, error) {
+	mode, err := strconv.ParseUint(strings.TrimSpace(s), 8, 32)
+	if err != nil {
+		return 0, err
+	}
+	return os.FileMode(mode), nil
 }
 
 func (l *Importer) ListUntrackedFiles(ctx context.Context, path string) ([]string, error) {
@@ -88,22 +97,52 @@ func (l *Importer) ListUntrackedFiles(ctx context.Context, path string) ([]strin
 	if _, _, err := l.shell.Execf(ctx, "", `test -d "%s"`, path); err != nil {
 		return nil, myerrors.NewErrorIsNotDirectory(path)
 	}
-
-	if _, stderr, err := l.shell.Exec(ctx, absPath, `git init`); err != nil {
-		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
-	}
-	defer func() {
-		_, _, _ = l.shell.Execf(context.Background(), "", `rm -rf "%s"`, filepath.Join(absPath, ".git"))
-	}()
-	if _, stderr, err := l.shell.Execf(ctx, absPath, `git config --global --add safe.directory "%s"`, absPath); err != nil {
-		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	if err := l.addSafeDirectory(ctx, absPath); err != nil {
+		return nil, err
 	}
 
-	stdout, stderr, err := l.shell.Exec(ctx, absPath, `git ls-files --others --exclude-standard`)
+	gitCmd := "git"
+	if _, _, err := l.shell.Exec(ctx, absPath, `git rev-parse --show-toplevel`); err != nil {
+		// a throwaway git-dir keeps the target free of .git; git init in the target would delete an existing history on cleanup
+		stdout, stderr, err := l.shell.Exec(ctx, "", `mktemp -d`)
+		if err != nil {
+			return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		}
+		gitDir := strings.TrimSpace(stdout.String())
+		defer func() {
+			_, _, _ = l.shell.Execf(context.Background(), "", `rm -rf "%s"`, gitDir)
+		}()
+		gitCmd = fmt.Sprintf(`git --git-dir="%s" --work-tree="%s"`, gitDir, absPath)
+		if _, stderr, err := l.shell.Exec(ctx, absPath, gitCmd+` init`); err != nil {
+			return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		}
+	}
+
+	stdout, stderr, err := l.shell.Exec(ctx, absPath, gitCmd+` ls-files --others --exclude-standard`)
 	if err != nil {
 		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
-	return strings.Split(stdout.String(), "\n"), nil
+	files := []string{}
+	for _, f := range strings.Split(stdout.String(), "\n") {
+		if f != "" {
+			files = append(files, f)
+		}
+	}
+	return files, nil
+}
+
+func (l *Importer) addSafeDirectory(ctx context.Context, absPath string) error {
+	// exit status 1 (no entries) is not an error here
+	stdout, _, _ := l.shell.Exec(ctx, "", `git config --global --get-all safe.directory`)
+	for _, d := range strings.Split(stdout.String(), "\n") {
+		if d == absPath {
+			return nil
+		}
+	}
+	if _, stderr, err := l.shell.Execf(ctx, "", `git config --global --add safe.directory "%s"`, absPath); err != nil {
+		return myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	return nil
 }
 
 func (l *Importer) ExcludeSymlinkFiles(ctx context.Context, files []string) []string {
