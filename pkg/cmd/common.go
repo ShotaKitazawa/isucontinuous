@@ -64,8 +64,8 @@ func perHostExec(
 	names := make([]string, len(hosts))
 	results := make([]HostResult, len(hosts))
 	for idx, host := range hosts {
-		names[idx] = host.Host
-		results[idx] = HostResult{Host: host.Host}
+		names[idx] = host.Name
+		results[idx] = HostResult{Host: host.Name}
 	}
 	if err := reporter.Open(names, len(tasks)); err != nil {
 		return results, err
@@ -77,13 +77,13 @@ func perHostExec(
 		host := host
 		eg.Go(func() error {
 			for _, task := range tasks {
-				reporter.TaskStarted(host.Host, task.name)
+				reporter.TaskStarted(host.Name, task.name)
 				if err := task.f(ctx, host); err != nil {
-					logger.Error(err.Error(), zap.String("host", host.Host))
-					reporter.TaskFailed(host.Host, task.name, err)
-					return myerrors.NewErrorHostTask(host.Host, task.name, err)
+					logger.Error(err.Error(), zap.String("host", host.Name))
+					reporter.TaskFailed(host.Name, task.name, err)
+					return myerrors.NewErrorHostTask(host.Name, task.name, err)
 				}
-				reporter.TaskDone(host.Host, task.name)
+				reporter.TaskDone(host.Name, task.name)
 				results[idx].Tasks = append(results[idx].Tasks, task.name)
 			}
 			return nil

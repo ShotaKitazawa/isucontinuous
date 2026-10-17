@@ -24,6 +24,8 @@ type fakeRepo struct {
 	revision string
 	pushed   *localrepo.PushResult
 	conf     *config.Config
+	disabled bool
+	calls    []string
 }
 
 func (f *fakeRepo) CurrentBranch(ctx context.Context) (string, error) { return f.branch, nil }
@@ -33,7 +35,9 @@ func (f *fakeRepo) Push(ctx context.Context, m string) (*localrepo.PushResult, e
 	return f.pushed, nil
 }
 func (f *fakeRepo) LoadConf() (*config.Config, error) { return f.conf, nil }
+func (f *fakeRepo) HasDisabledHost() (bool, error)    { return f.disabled, nil }
 func (f *fakeRepo) SwitchDetachedBranch(ctx context.Context, r string) error {
+	f.calls = append(f.calls, "switch")
 	return nil
 }
 func (f *fakeRepo) GetRevision(ctx context.Context) (string, error) {
@@ -88,6 +92,25 @@ func TestRunPush_Result(t *testing.T) {
 	}
 }
 
+func TestRunPush_DisabledWarning(t *testing.T) {
+	for _, c := range []struct {
+		branch   string
+		disabled bool
+		want     int
+	}{
+		{"main", true, 1}, {"master", true, 1}, {"main", false, 0}, {"feature", true, 0},
+	} {
+		repo := &fakeRepo{branch: c.branch, disabled: c.disabled, pushed: &localrepo.PushResult{}}
+		res, err := runPush(ConfigPush{GitBranch: c.branch}, context.Background(), zaptest.NewLogger(t), repo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(res.Warnings) != c.want {
+			t.Errorf("branch=%s disabled=%v: warnings = %v, want %d", c.branch, c.disabled, res.Warnings, c.want)
+		}
+	}
+}
+
 func TestRunPush_WrongBranch(t *testing.T) {
 	repo := &fakeRepo{branch: ""}
 	res, err := runPush(ConfigPush{GitBranch: "master"}, context.Background(), zaptest.NewLogger(t), repo)
@@ -103,10 +126,14 @@ func TestRunDeploy_Result(t *testing.T) {
 	newDeployers := func(*zap.Logger, *template.Templator, string, []config.Host) (map[string]*deploy.Deployer, error) {
 		return map[string]*deploy.Deployer{}, nil
 	}
+	newSlackClient := func(*config.Config) slack.ClientIface {
+		repo.calls = append(repo.calls, "slack")
+		return slack.NewFakeClient(zap.NewNop())
+	}
 	var res *DeployResult
 	var err error
 	assertNoStdout(t, func() {
-		res, err = runDeploy(conf, context.Background(), zaptest.NewLogger(t), repo, slack.NewFakeClient(zap.NewNop()), newDeployers)
+		res, err = runDeploy(conf, context.Background(), zaptest.NewLogger(t), repo, newSlackClient, newDeployers)
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -116,5 +143,8 @@ func TestRunDeploy_Result(t *testing.T) {
 	}
 	if repo.revision != "master" {
 		t.Errorf("revision = %q, want master", repo.revision)
+	}
+	if want := "switch,slack"; strings.Join(repo.calls, ",") != want {
+		t.Errorf("calls = %v, want %s", repo.calls, want)
 	}
 }

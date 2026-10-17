@@ -8,7 +8,10 @@ setup:
 slack:
   default_channel_id: ""
 hosts:
-- host: localhost
+- name: isu1
+  host: 192.0.2.1
+  local: false
+  disabled: false
   user: &user root
   key: &key /root/.ssh/id_rsa
   deploy: &deploy

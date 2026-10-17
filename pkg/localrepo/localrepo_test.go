@@ -237,3 +237,25 @@ func TestLocalRepo_Push(t *testing.T) {
 		}
 	})
 }
+
+func TestLocalRepo_LoadConf(t *testing.T) {
+	dir := t.TempDir()
+	yaml := "hosts:\n- host: 192.0.2.1\n  name: isu1\n- host: '{{.Env.LOCALREPO_TEST_NOT_SET}}'\n  disabled: true\n"
+	if err := os.WriteFile(filepath.Join(dir, isucontinuousFilename), []byte(yaml), 0644); err != nil {
+		t.Fatal(err)
+	}
+	repo, err := AttachLocalRepo(zaptest.NewLogger(t), kexec.New(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conf, err := repo.LoadConf()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(conf.Hosts) != 1 || conf.Hosts[0].Name != "isu1" {
+		t.Errorf("hosts = %+v", conf.Hosts)
+	}
+	if ok, err := repo.HasDisabledHost(); err != nil || !ok {
+		t.Errorf("HasDisabledHost = %v, %v; want true", ok, err)
+	}
+}

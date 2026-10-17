@@ -32,18 +32,15 @@ func RunDeploy(conf ConfigDeploy) (*DeployResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	// load isucontinuous.yaml
-	isucontinuous, err := repo.LoadConf()
-	if err != nil {
-		return nil, err
+	newSlackClient := func(c *config.Config) slack.ClientIface {
+		return slack.NewClient(logger, conf.SlackToken, c.Slack.DefaultChannelId)
 	}
-	slackClient := slack.NewClient(logger, conf.SlackToken, isucontinuous.Slack.DefaultChannelId)
-	return runDeploy(conf, ctx, logger, repo, slackClient, deploy.NewDeployers)
+	return runDeploy(conf, ctx, logger, repo, newSlackClient, deploy.NewDeployers)
 }
 
 func runDeploy(
 	conf ConfigDeploy, ctx context.Context, logger *zap.Logger,
-	repo localrepo.LocalRepoIface, slackClient slack.ClientIface,
+	repo localrepo.LocalRepoIface, newSlackClient func(*config.Config) slack.ClientIface,
 	newDeployersFunc deploy.NewDeployersFunc,
 ) (*DeployResult, error) {
 	logger.Info("start deploy")
@@ -60,6 +57,7 @@ func runDeploy(
 	if err != nil {
 		return nil, err
 	}
+	slackClient := newSlackClient(isucontinuous)
 	// Check to have already deployed
 	if !conf.Force {
 		if r, err := repo.GetRevision(ctx); err == nil {
@@ -86,25 +84,25 @@ func runDeploy(
 		func(ctx context.Context, host config.Host) error {
 			// Notify to Slack
 			if err := slackClient.SendText(ctx, host.Deploy.SlackChannelId,
-				fmt.Sprintf("*<%s> deploying to %s...*", conf.GitRevision, host.Host)); err != nil {
+				fmt.Sprintf("*<%s> deploying to %s...*", conf.GitRevision, host.Name)); err != nil {
 				return err
 			}
 			defer func() {
 				if err != nil {
 					_ = slackClient.SendText(ctx, host.Deploy.SlackChannelId,
-						fmt.Sprintf("*<%s> deploy was failed to %s* :sob:", conf.GitRevision, host.Host))
+						fmt.Sprintf("*<%s> deploy was failed to %s* :sob:", conf.GitRevision, host.Name))
 				} else {
 					_ = slackClient.SendText(ctx, host.Deploy.SlackChannelId,
-						fmt.Sprintf("*<%s> deploy was succeeded to %s* :laughing:", conf.GitRevision, host.Host))
+						fmt.Sprintf("*<%s> deploy was succeeded to %s* :laughing:", conf.GitRevision, host.Name))
 				}
 			}()
-			deployer := deployers[host.Host]
+			deployer := deployers[host.Name]
 			// Execute preCommand
 			if err = deployer.RunCommand(ctx, host.Deploy.PreCommand); err != nil {
 				return err
 			}
 			// Deploy
-			if err = deployer.Deploy(ctx, host.Host, host.Deploy.Targets); err != nil {
+			if err = deployer.Deploy(ctx, host.Name, host.Deploy.Targets); err != nil {
 				return err
 			}
 			// Execute postCommand

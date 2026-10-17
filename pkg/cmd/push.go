@@ -70,8 +70,17 @@ func runPush(
 	if err != nil {
 		return nil, err
 	}
+	warnings := pushed.Warnings
+	if currentBranch == "main" || currentBranch == "master" {
+		if disabled, err := repo.HasDisabledHost(); err != nil {
+			warnings = append(warnings, fmt.Sprintf("could not check for disabled hosts: %v", err))
+		} else if disabled {
+			warnings = append(warnings, fmt.Sprintf(
+				"isucontinuous.yaml has a host with disabled: true on %s: enable all hosts on this branch", currentBranch))
+		}
+	}
 	return &PushResult{
-		Result: Result{Warnings: pushed.Warnings},
+		Result: Result{Warnings: warnings},
 		Files:  pushed.Files,
 	}, nil
 }

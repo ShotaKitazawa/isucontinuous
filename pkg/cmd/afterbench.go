@@ -63,7 +63,7 @@ func runAfterBench(
 		"AfterBench",
 		func(ctx context.Context, host config.Host) error {
 			if host.AfterBench.Target == "" {
-				logger.Debug("skip bacause target is not specified", zap.String("host", host.Host))
+				logger.Debug("skip bacause target is not specified", zap.String("host", host.Name))
 				return nil
 			}
 			afterbencher, err := newAfterBenchersFunc(logger, template.New(gitRevision), slackClient, host)
@@ -78,8 +78,8 @@ func runAfterBench(
 			defer func() {
 				suffix := fmt.Sprintf("%d", time.Now().Unix())
 				if err := afterbencher.CleanUp(ctx, host.AfterBench.Target, suffix); err != nil {
-					msg := fmt.Sprintf("[%s] failed to cleanup: %v", host.Host, err)
-					logger.Error(msg, zap.String("host", host.Host))
+					msg := fmt.Sprintf("[%s] failed to cleanup: %v", host.Name, err)
+					logger.Error(msg, zap.String("host", host.Name))
 					warnings.Add(msg)
 				}
 			}()

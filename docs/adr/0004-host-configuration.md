@@ -1,6 +1,6 @@
 ---
 status: accepted
-pr: nil
+pr: "#37"
 date: 2026-10-13
 related: [ADR-0003, ADR-0005, ADR-0006]
 ---
@@ -65,9 +65,16 @@ related: [ADR-0003, ADR-0005, ADR-0006]
 
 ## 未決事項
 
-- [ ] `host: localhost` を使う既存の yaml への移行措置 (警告で案内する案など)
-- [ ] 雛形 (`skelton.yaml`) の更新内容
+- [x] `host: localhost` を使う既存の yaml への移行措置 (警告で案内する案など)
+- [x] 雛形 (`skelton.yaml`) の更新内容
 
 ## 実装時に決めたこと
 
-(未実装)
+実装時に次のとおり決めた。
+
+- `host: localhost` を使う既存の yaml の移行措置: `host` が `localhost` / `127.0.0.1` で `local` が未指定なら、設定の読み込みでエラーにし、`local: true` か実アドレスを促す。警告で続行すると、ローカル実行にも SSH 接続にもなり得て、PC で自分の PC にデプロイする余地が残るため。`local: false` の明示は未指定と区別しない。
+- 雛形 (`skelton.yaml`): `host: 192.0.2.1` の実アドレス例にし、`name: isu1`、`local: false`、`disabled: false` を載せた。
+- `disabled` のホストは、環境変数の検証を含め、一切評価しない。PC に存在しない環境変数を参照していても読み込める。
+- 有効なホスト間で `name` (省略時は `host`) が重複したらエラーにする。ホストディレクトリ名と内部のキーが衝突するため。
+- main (master) への `push` 時の `disabled` の検査は、テンプレートを評価しない。環境変数なしで動く。
+

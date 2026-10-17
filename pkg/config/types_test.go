@@ -1,17 +1,13 @@
 package config
 
-import (
-	"testing"
-
-	"gopkg.in/yaml.v3"
-)
+import "testing"
 
 func TestHost_Port(t *testing.T) {
-	h := Host{}
-	if err := yaml.Unmarshal([]byte("host: 192.0.2.1\nport: 2222\n"), &h); err != nil {
+	conf, err := Load([]byte("hosts:\n- host: 192.0.2.1\n  port: 2222\n"))
+	if err != nil {
 		t.Fatal(err)
 	}
-	if h.Port != 2222 {
+	if h := conf.Hosts[0]; h.Port != 2222 {
 		t.Errorf("Host.Port = %d, want 2222", h.Port)
 	}
 }
