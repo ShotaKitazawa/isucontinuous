@@ -3,16 +3,19 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
+	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/hoststate"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
@@ -32,11 +35,19 @@ type fakeRepo struct {
 	plain    bool
 	calls    []string
 	shown    map[string][]byte
+	dirty    []string
+	reset    bool
+	detached bool
 }
 
-func (f *fakeRepo) CurrentBranch(ctx context.Context) (string, error) { return f.branch, nil }
-func (f *fakeRepo) Fetch(ctx context.Context) error                   { return nil }
-func (f *fakeRepo) DiffWithRemote(ctx context.Context) (bool, error)  { return true, nil }
+func (f *fakeRepo) CurrentBranch(ctx context.Context) (string, error) {
+	if f.detached {
+		return "", myerrors.NewErrorGitBranchIsDetached()
+	}
+	return f.branch, nil
+}
+func (f *fakeRepo) Fetch(ctx context.Context) error                  { return nil }
+func (f *fakeRepo) DiffWithRemote(ctx context.Context) (bool, error) { return true, nil }
 func (f *fakeRepo) Push(ctx context.Context, m string) (*localrepo.PushResult, error) {
 	return f.pushed, nil
 }
@@ -54,6 +65,20 @@ func (f *fakeRepo) ResolveRevision(ctx context.Context, r string) (string, error
 func (f *fakeRepo) ShowFile(ctx context.Context, hash, path string) ([]byte, bool, error) {
 	content, ok := f.shown[path]
 	return content, ok, nil
+}
+func (f *fakeRepo) IsClean(ctx context.Context, includeIgnored bool) ([]string, error) {
+	return f.dirty, nil
+}
+func (f *fakeRepo) Reset(ctx context.Context) error {
+	f.reset = true
+	return nil
+}
+func (f *fakeRepo) SwitchAndMerge(ctx context.Context, branch string) error {
+	f.calls = append(f.calls, "merge:"+branch)
+	return nil
+}
+func (f *fakeRepo) GetHeadCommit(ctx context.Context) (*localrepo.CommitInfo, error) {
+	return &localrepo.CommitInfo{Hash: "abc1234", Message: "message", Date: time.Date(2026, 10, 13, 1, 2, 3, 0, time.UTC)}, nil
 }
 func (f *fakeRepo) GetHeadInfo(ctx context.Context) (string, string, error) {
 	return "abc1234", "message", nil
@@ -143,7 +168,7 @@ func TestRunDeploy_Result(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Hash != "abc1234" || res.Message != "message" || res.Revision != "master" {
+	if res.Hash != "abc1234" || res.Message != "message" || res.Revision != "master" || res.Date.IsZero() {
 		t.Errorf("result = %+v", res)
 	}
 	if want := "switch,slack"; strings.Join(repo.calls, ",") != want {
@@ -254,5 +279,51 @@ func TestRunPush_PlaintextPasswordWarning(t *testing.T) {
 		if got := len(res.Warnings) == 1; got != plain {
 			t.Errorf("plain=%v: warnings = %v", plain, res.Warnings)
 		}
+	}
+}
+
+func TestRunSync_RefusesDirtyWorkingTree(t *testing.T) {
+	var dirtyErr myerrors.LocalRepoDirty
+	repo := &fakeRepo{branch: "master", detached: true, dirty: []string{"untracked.txt"}}
+	_, err := runSync(ConfigSync{GitBranch: "master"}, context.Background(), zaptest.NewLogger(t), repo)
+	if !errors.As(err, &dirtyErr) || len(dirtyErr.Paths) != 1 {
+		t.Fatalf("err = %v, want LocalRepoDirty", err)
+	}
+	if repo.reset || len(repo.calls) != 0 {
+		t.Errorf("nothing may happen to the repo: reset = %v, calls = %v", repo.reset, repo.calls)
+	}
+}
+
+func TestRunSync_Force(t *testing.T) {
+	repo := &fakeRepo{branch: "master", detached: true, dirty: []string{"untracked.txt"}}
+	if _, err := runSync(ConfigSync{GitBranch: "master", Force: true}, context.Background(), zaptest.NewLogger(t), repo); err != nil {
+		t.Fatal(err)
+	}
+	if !repo.reset || strings.Join(repo.calls, ",") != "merge:master" {
+		t.Errorf("reset = %v, calls = %v", repo.reset, repo.calls)
+	}
+}
+
+func TestRunSync_CleanDetachedResets(t *testing.T) {
+	repo := &fakeRepo{branch: "master", detached: true}
+	if _, err := runSync(ConfigSync{GitBranch: "master"}, context.Background(), zaptest.NewLogger(t), repo); err != nil {
+		t.Fatal(err)
+	}
+	if !repo.reset {
+		t.Error("a detached HEAD must be reset after the check")
+	}
+}
+
+func TestRunDeploy_RefusesDirtyWorkingTree(t *testing.T) {
+	repo := &fakeRepo{conf: &config.Config{}, dirty: []string{"web01/untracked.conf"}}
+	conf := ConfigDeploy{GitRevision: "master"}
+	conf.Reporter = NewRecordingReporter()
+	_, err := runDeploy(conf, context.Background(), zaptest.NewLogger(t), repo, nil, nil, lockersWith(nil))
+	var dirtyErr myerrors.LocalRepoDirty
+	if !errors.As(err, &dirtyErr) {
+		t.Fatalf("err = %v, want LocalRepoDirty", err)
+	}
+	if len(repo.calls) != 0 {
+		t.Errorf("the working tree must not move: %v", repo.calls)
 	}
 }

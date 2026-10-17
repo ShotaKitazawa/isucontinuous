@@ -32,6 +32,11 @@ func RunImport(conf ConfigImport) (*ImportResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := repo.Lock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	return runImport(conf, ctx, logger, repo, imports.NewImporters, lock.NewLockers)
 }
 

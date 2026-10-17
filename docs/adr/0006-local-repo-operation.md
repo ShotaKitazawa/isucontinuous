@@ -1,6 +1,6 @@
 ---
 status: accepted
-pr: nil
+pr: "#41"
 date: 2026-10-13
 related: [ADR-0003, ADR-0004, ADR-0005, ADR-0007]
 ---
@@ -66,9 +66,14 @@ local-repo は、isucontinuous を実行するマシン上にある git の clon
 
 ## 未決事項
 
-- [ ] ローカルロックのファイルの位置
-- [ ] 「クリーン」の判定の詳細 (無視されたファイルを含めるか)
+- [x] ローカルロックのファイルの位置
+- [x] 「クリーン」の判定の詳細 (無視されたファイルを含めるか)
 
 ## 実装時に決めたこと
 
-(未実装)
+- ローカルロックのファイルは local-repo の `.git/isucontinuous.lock` に置く。作業ツリーを汚さず、`deploy` のクリーン判定にも影響しない。取得できなければ待たずに `LocalRepoLocked` で失敗する。対象は `import`、`push`、`sync`、`deploy`、`diff`、`profiling`、`afterbench`、`setup`。`init` は clone が存在しないため対象外。Windows は対象外で、ロックは何もしない。
+- 「クリーン」の判定は未追跡ファイルを含む。無視されたファイルは、`sync` では数えず (`reset --hard` と `clean -df` が触れないため)、`deploy` では数える (`WalkDir` が無視ファイルも配置するため)。
+- リモートに到達できない場合、`init` はエラーにせず雛形を作り、`Warnings` に載せる。到達確認 (`git ls-remote`) は30秒でタイムアウトする。
+- リモートに複数のブランチがある場合、`init` が取り込むブランチは、リモートの HEAD が指すブランチ、`master`、`main`、先頭の順で選ぶ。
+- ロックに revision がない場合、`profiling` と `afterbench` は不一致として扱いエラーにする。
+

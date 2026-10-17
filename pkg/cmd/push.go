@@ -28,6 +28,11 @@ func RunPush(conf ConfigPush) (*PushResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := repo.Lock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	return runPush(conf, ctx, logger, repo)
 }
 

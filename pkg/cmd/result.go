@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"sync"
+	"time"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/deploy"
@@ -34,6 +35,7 @@ type DeployResult struct {
 	Revision string
 	Hash     string
 	Message  string
+	Date     time.Time
 }
 
 type DiffResult struct {

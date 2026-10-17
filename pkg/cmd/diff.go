@@ -32,6 +32,11 @@ func RunDiff(conf ConfigDiff) (*DiffResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := repo.Lock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	return runDiff(conf, ctx, logger, repo, deploy.NewDeployers)
 }
 
@@ -59,7 +64,7 @@ func runDiff(
 	}
 	result := &DiffResult{}
 	result.Warnings = isucontinuous.Warnings
-	deployers, err := newDeployersFunc(logger, template.New(conf.GitRevision), conf.LocalRepoPath, isucontinuous.Hosts)
+	deployers, err := newDeployersFunc(logger, template.New(hash), conf.LocalRepoPath, isucontinuous.Hosts)
 	if err != nil {
 		return result, err
 	}

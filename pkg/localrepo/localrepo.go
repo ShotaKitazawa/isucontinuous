@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 	kexec "k8s.io/utils/exec"
@@ -21,6 +22,8 @@ const (
 	defaultCommitMessage  = "commit by isucontinuous"
 	// large files are warned, not blocked: the repository is disposable and GitHub rejects >100MB itself
 	largeFileThreshold = 1 << 20
+	// a remote that never answers must not hang init
+	remoteCheckTimeout = 30 * time.Second
 )
 
 type PushedFile struct {
@@ -50,6 +53,15 @@ type LocalRepoIface interface {
 	GetHeadInfo(ctx context.Context) (string, string, error)
 	ResolveRevision(ctx context.Context, revision string) (string, error)
 	ShowFile(ctx context.Context, hash, path string) ([]byte, bool, error)
+	IsClean(ctx context.Context, includeIgnored bool) ([]string, error)
+	GetHeadCommit(ctx context.Context) (*CommitInfo, error)
+	RemoteBranches(ctx context.Context) (branches []string, defaultBranch string, err error)
+}
+
+type CommitInfo struct {
+	Hash    string
+	Message string
+	Date    time.Time
 }
 
 type LocalRepo struct {
@@ -59,46 +71,81 @@ type LocalRepo struct {
 	absPath string
 }
 
-func InitLocalRepo(logger *zap.Logger, e kexec.Interface, path, username, email, remoteUrl, sshKey string) (*LocalRepo, error) {
+func InitLocalRepo(logger *zap.Logger, e kexec.Interface, path, username, email, remoteUrl, sshKey string) (*LocalRepo, []string, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	l := &LocalRepo{*logger, shell.NewLocalClient(e), absPath}
 	ctx := context.Background()
 	// Initialize local-repo
 	if _, stderr, err := l.shell.Exec(ctx, l.absPath, "git init"); err != nil {
-		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git config user.name "%s"`, username); err != nil {
-		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git config user.email "%s"`, email); err != nil {
-		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	if _, stderr, err := l.shell.Execf(ctx, l.absPath, `git remote add origin "%s"`, remoteUrl); err != nil {
-		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+		return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	if sshKey != "" {
 		// git runs core.sshCommand through a shell, so the path is single-quoted instead of escaped
 		if strings.ContainsAny(sshKey, "'\n") {
-			return nil, fmt.Errorf("ssh key path must not contain a single quote or newline: %q", sshKey)
+			return nil, nil, fmt.Errorf("ssh key path must not contain a single quote or newline: %q", sshKey)
 		}
 		sshCommand := fmt.Sprintf("ssh -i '%s' -o IdentitiesOnly=yes", sshKey)
 		if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "config", "core.sshCommand", sshCommand); err != nil {
-			return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+			return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)
 		}
 	}
-	// Generate from skelton
+	lsCtx, cancel := context.WithTimeout(ctx, remoteCheckTimeout)
+	defer cancel()
+	branches, defaultBranch, err := l.RemoteBranches(lsCtx)
+	if err != nil {
+		// an unreachable remote must not block the first setup; the user sees it in Warnings
+		warning := fmt.Sprintf("could not reach the remote, so the existing branches were not checked: %v", err)
+		if err := l.createSkelton(); err != nil {
+			return nil, nil, err
+		}
+		return l, []string{warning}, nil
+	}
+	if len(branches) == 0 {
+		if err := l.createSkelton(); err != nil {
+			return nil, nil, err
+		}
+		return l, nil, nil
+	}
+	branch := pickBranch(branches, defaultBranch)
+	if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "fetch", "origin"); err != nil {
+		return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "checkout", "-B", branch, "origin/"+branch); err != nil {
+		return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	return l, nil, nil
+}
+
+func (l *LocalRepo) createSkelton() error {
 	f, err := config.SkeltonBytes()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	// Create isucontinuous.yaml to local-repo.
-	if err := l.CreateFile(isucontinuousFilename, f, 0644); err != nil {
-		return nil, err
+	return l.CreateFile(isucontinuousFilename, f, 0644)
+}
+
+// pickBranch prefers the branch HEAD of the remote points to; there is no branch flag on init, so master and main follow.
+func pickBranch(branches []string, defaultBranch string) string {
+	for _, want := range []string{defaultBranch, "master", "main"} {
+		for _, b := range branches {
+			if want != "" && b == want {
+				return b
+			}
+		}
 	}
-	return l, nil
+	return branches[0]
 }
 
 func AttachLocalRepo(logger *zap.Logger, e kexec.Interface, path string) (*LocalRepo, error) {
@@ -316,6 +363,78 @@ func (l *LocalRepo) GetHeadInfo(ctx context.Context) (string, string, error) {
 	}
 	msg := stdout.String()
 	return hash, msg, nil
+}
+
+// IsClean returns the paths that make the working tree dirty; ignored files count only with includeIgnored,
+// because the Deployer walks the file system and would deploy them.
+func (l *LocalRepo) IsClean(ctx context.Context, includeIgnored bool) ([]string, error) {
+	args := []string{"status", "--porcelain", "-z", "--untracked-files=all"}
+	if includeIgnored {
+		args = append(args, "--ignored")
+	}
+	stdout, stderr, err := l.shell.ExecArgsRaw(ctx, l.absPath, "git", args...)
+	if err != nil {
+		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	var paths []string
+	entries := strings.Split(stdout.String(), "\x00")
+	for i := 0; i < len(entries); i++ {
+		e := entries[i]
+		if len(e) < 4 {
+			continue
+		}
+		paths = append(paths, e[3:])
+		// a rename or copy is followed by its source path
+		if e[0] == 'R' || e[0] == 'C' {
+			i++
+		}
+	}
+	return paths, nil
+}
+
+func (l *LocalRepo) GetHeadCommit(ctx context.Context) (*CommitInfo, error) {
+	stdout, stderr, err := l.shell.ExecArgsRaw(ctx, l.absPath, "git", "log", "-1", "--format=%H%x00%cI%x00%B")
+	if err != nil {
+		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	parts := strings.SplitN(stdout.String(), "\x00", 3)
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("unexpected git log output: %q", stdout.String())
+	}
+	date, err := time.Parse(time.RFC3339, parts[1])
+	if err != nil {
+		return nil, err
+	}
+	return &CommitInfo{Hash: parts[0], Date: date, Message: strings.TrimSpace(parts[2])}, nil
+}
+
+// RemoteBranches lists the branches of origin and the one HEAD points to, if any.
+func (l *LocalRepo) RemoteBranches(ctx context.Context) ([]string, string, error) {
+	stdout, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "ls-remote", "--symref", "origin", "HEAD", "refs/heads/*")
+	if err != nil {
+		return nil, "", myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	var branches []string
+	defaultBranch := ""
+	for _, line := range strings.Split(stdout.String(), "\n") {
+		fields := strings.Fields(line)
+		switch {
+		case len(fields) == 3 && fields[0] == "ref:" && fields[2] == "HEAD":
+			defaultBranch = strings.TrimPrefix(fields[1], "refs/heads/")
+		case len(fields) == 2 && strings.HasPrefix(fields[1], "refs/heads/"):
+			branches = append(branches, strings.TrimPrefix(fields[1], "refs/heads/"))
+		}
+	}
+	return branches, defaultBranch, nil
+}
+
+// Lock excludes other processes on this machine from operating on local-repo; it does not wait.
+func (l *LocalRepo) Lock(ctx context.Context) (func(), error) {
+	stdout, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "rev-parse", "--absolute-git-dir")
+	if err != nil {
+		return nil, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	return lockFile(filepath.Join(stdout.String(), "isucontinuous.lock"))
 }
 
 // ResolveRevision resolves revision to a commit hash without moving the working tree.

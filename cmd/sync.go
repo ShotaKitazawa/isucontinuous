@@ -23,6 +23,7 @@ var syncCmd = &cobra.Command{
 				KnownHostsPath: knownHosts,
 			},
 			GitBranch: syncGitBranch,
+			Force:     syncForce,
 		}
 		_, err := cmd.RunSync(conf)
 		return err
@@ -31,10 +32,13 @@ var syncCmd = &cobra.Command{
 
 var (
 	syncGitBranch string
+	syncForce     bool
 )
 
 func init() {
 	rootCmd.AddCommand(syncCmd)
 	syncCmd.PersistentFlags().StringVarP(&syncGitBranch, "branch", "b", "master",
 		"branch-name to push to Git remote-repo")
+	syncCmd.PersistentFlags().BoolVarP(&syncForce, "force", "f", false,
+		"sync even if local-repo has uncommitted changes (they may be lost)")
 }

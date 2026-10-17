@@ -34,6 +34,11 @@ func RunAfterBench(conf ConfigAfterBench) (*AfterBenchResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := repo.Lock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	// load isucontinuous.yaml
 	isucontinuous, err := repo.LoadConf()
 	if err != nil {
@@ -65,6 +70,9 @@ func runAfterBench(
 	}
 	locks, err := requireAll(ctx, logger, lockers, isucontinuous.Hosts, owner)
 	if err != nil {
+		return nil, err
+	}
+	if err := checkHeadMatchesLocks(ctx, repo, isucontinuous.Hosts, locks); err != nil {
 		return nil, err
 	}
 	// AfterBench files to per host
