@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -253,5 +254,30 @@ func TestProgressNotifiedOnlyWithToken(t *testing.T) {
 	}
 	if msgs[0].Progress >= msgs[1].Progress || msgs[1].Progress != msgs[1].Total || msgs[0].ProgressToken != "tok" {
 		t.Errorf("notifications = %+v %+v", msgs[0], msgs[1])
+	}
+}
+
+func TestAfterBenchResponseIsLimited(t *testing.T) {
+	full := strings.Repeat("0123456789\n", 10)
+	runners := DefaultRunners()
+	runners.AfterBench = func(cmd.ConfigAfterBench) (*cmd.AfterBenchResult, error) {
+		return &cmd.AfterBenchResult{Artifacts: []cmd.Artifact{
+			{Host: "web01", Path: "/p/abc.1/alp.txt", Size: len(full), Content: full},
+		}}, nil
+	}
+	cs := connect(t, Options{Runners: &runners, Limits: Limits{MaxFileBytes: 33}}, nil)
+	res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: "afterbench"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(res.StructuredContent)
+	var out cmd.AfterBenchResult
+	if err := json.Unmarshal(b, &out); err != nil {
+		t.Fatal(err)
+	}
+	a := out.Artifacts[0]
+	if a.Content != strings.Repeat("0123456789\n", 3) || a.Size != len(full) ||
+		!strings.Contains(a.Note, "kept 33 of 110 bytes") || !strings.Contains(a.Note, "web01:/p/abc.1/alp.txt") {
+		t.Errorf("artifact = %+v", a)
 	}
 }

@@ -55,27 +55,39 @@ func (p AfterBencher) RunCommand(ctx context.Context, command string) error {
 	return nil
 }
 
-func (p AfterBencher) PostToSlack(ctx context.Context, dir, channel string) error {
+// Artifact is a file produced by the commands, read once for both Slack and the result.
+type Artifact struct {
+	Path    string
+	Content string
+}
+
+// PostToSlack posts every file under dir and returns them; on failure it returns those read so far.
+func (p AfterBencher) PostToSlack(ctx context.Context, dir, channel string) ([]Artifact, error) {
 	dir, err := p.template.Exec(dir)
 	dir = filepath.Clean(dir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	stdout, stderr, err := p.shell.Execf(ctx, "", `find "%s" -type f`, dir)
 	if err != nil {
-		return myerrros.NewErrorCommandExecutionFailed(stderr)
+		return nil, myerrros.NewErrorCommandExecutionFailed(stderr)
 	}
+	var artifacts []Artifact
 	for _, filename := range strings.Split(stdout.String(), "\n") {
+		if filename == "" {
+			continue
+		}
 		stdout, stderr, err := p.shell.Execf(ctx, "", "cat %s", filename)
 		if err != nil {
-			return myerrros.NewErrorCommandExecutionFailed(stderr)
+			return artifacts, myerrros.NewErrorCommandExecutionFailed(stderr)
 		}
+		artifacts = append(artifacts, Artifact{Path: filename, Content: stdout.String()})
 		title := fmt.Sprintf("%s at %s (%s)", filepath.Base(filename), p.shell.Host(), p.template.Git.Revision)
 		if err := p.slack.SendFileContent(ctx, channel, filename, stdout.String(), title); err != nil {
-			return err
+			return artifacts, err
 		}
 	}
-	return nil
+	return artifacts, nil
 }
 
 func (p AfterBencher) Prepare(ctx context.Context, dir string) error {
@@ -90,15 +102,28 @@ func (p AfterBencher) Prepare(ctx context.Context, dir string) error {
 	return nil
 }
 
-func (p AfterBencher) CleanUp(ctx context.Context, dir, suffix string) error {
+// Moved is where the output directory went at the end of the run.
+type Moved struct {
+	From, To string
+}
+
+// Path converts a path under From to the same path under To.
+func (m Moved) Path(p string) string {
+	if m.From != "" && (p == m.From || strings.HasPrefix(p, m.From+"/")) {
+		return m.To + strings.TrimPrefix(p, m.From)
+	}
+	return p
+}
+
+func (p AfterBencher) CleanUp(ctx context.Context, dir, suffix string) (Moved, error) {
 	srcDir, err := p.template.Exec(dir)
 	srcDir = filepath.Clean(srcDir)
 	if err != nil {
-		return err
+		return Moved{}, err
 	}
 	dstDir := fmt.Sprintf("%s.%s", srcDir, suffix)
 	if _, stderr, err := p.shell.Execf(ctx, "", `mv "%s" "%s"`, srcDir, dstDir); err != nil {
-		return myerrros.NewErrorCommandExecutionFailed(stderr)
+		return Moved{}, myerrros.NewErrorCommandExecutionFailed(stderr)
 	}
-	return nil
+	return Moved{From: srcDir, To: dstDir}, nil
 }

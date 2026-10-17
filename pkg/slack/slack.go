@@ -2,6 +2,7 @@ package slack
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/slack-go/slack"
@@ -19,14 +20,16 @@ type Client struct {
 	defaultChannelId string
 }
 
-func NewClient(logger *zap.Logger, token, channel string) ClientIface {
+// NewClient fails when Slack cannot be used; the caller decides what to do, because falling back silently hides lost notifications.
+func NewClient(logger *zap.Logger, token, channel string) (ClientIface, error) {
+	if token == "" {
+		return nil, errors.New("slack token is not set")
+	}
 	api := slack.New(token)
 	if _, err := api.AuthTest(); err != nil {
-		// set fake client
-		logger.Info(fmt.Sprintf("Slack client is not authorized. set fake client (nothing to notify): %v", err))
-		return &FakeClient{logger}
+		return nil, fmt.Errorf("slack authentication failed: %w", err)
 	}
-	return &Client{logger, api, channel}
+	return &Client{logger, api, channel}, nil
 }
 
 func (c Client) SendText(ctx context.Context, channel, text string) error {

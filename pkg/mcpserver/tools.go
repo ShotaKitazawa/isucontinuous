@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	forceRule = "Taking over a lock held by someone else can break their work: ask the holder first and use force only after they agree. "
-	driftRule = "ignore_drift overwrites files that were edited directly on the servers: use it only after confirming that overwriting them is acceptable. "
-	warnRule  = "The result contains warnings: read them and act on them. "
-	hostKey   = "If it fails with a host key mismatch, do not work around it: a human must verify the host first. "
+	forceRule    = "Taking over a lock held by someone else can break their work: ask the holder first and use force only after they agree. "
+	driftRule    = "ignore_drift overwrites files that were edited directly on the servers: use it only after confirming that overwriting them is acceptable. "
+	warnRule     = "The result contains warnings: read them and act on them. "
+	artifactRule = "The result lists the output files; long ones are cut to whole lines from the top and marked in Note with the path on the server: to see less noise, narrow the output with after_bench.command (e.g. alp -m, pt-query-digest --limit, pprof -nodecount) instead of reading the full file. "
+	hostKey      = "If it fails with a host key mismatch, do not work around it: a human must verify the host first. "
 )
 
 type Empty struct{}
@@ -101,10 +102,13 @@ func registerTools(s *mcp.Server, o Options) {
 		adapt(o, func(_ Empty, c cmd.ConfigCommon) cmd.ConfigProfiling {
 			return cmd.ConfigProfiling{ConfigCommon: c}
 		}, r.Profiling))
-	mcp.AddTool(s, &mcp.Tool{Name: "afterbench", Description: "Collect and parse the profile data and notify Slack. Releases the locks on success; on failure the locks are kept. " + hostKey + warnRule},
+	mcp.AddTool(s, &mcp.Tool{Name: "afterbench", Description: "Collect and parse the profile data and notify Slack. Releases the locks on success; on failure the locks are kept. " + artifactRule + hostKey + warnRule},
 		adapt(o, func(_ Empty, c cmd.ConfigCommon) cmd.ConfigAfterBench {
 			return cmd.ConfigAfterBench{ConfigCommon: c, SlackToken: o.SlackToken}
-		}, r.AfterBench))
+		}, func(c cmd.ConfigAfterBench) (*cmd.AfterBenchResult, error) {
+			out, err := r.AfterBench(c)
+			return limitArtifacts(out, o.Limits), err
+		}))
 	mcp.AddTool(s, &mcp.Tool{Name: "release", Description: "Release the host locks you hold. " + forceRule + warnRule},
 		adapt(o, func(in ReleaseInput, c cmd.ConfigCommon) cmd.ConfigRelease {
 			return cmd.ConfigRelease{ConfigCommon: c, Force: in.Force, IncludeDisabled: in.IncludeDisabled}

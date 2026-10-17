@@ -150,15 +150,15 @@ func TestRunPush_WrongBranch(t *testing.T) {
 }
 
 func TestRunDeploy_Result(t *testing.T) {
-	repo := &fakeRepo{conf: &config.Config{}}
+	repo := &fakeRepo{conf: &config.Config{Slack: config.Slack{DefaultChannelId: "C123"}}}
 	conf := ConfigDeploy{GitRevision: "master"}
 	conf.Reporter = NewRecordingReporter()
 	newDeployers := func(*zap.Logger, *template.Templator, string, []config.Host) (map[string]*deploy.Deployer, error) {
 		return map[string]*deploy.Deployer{}, nil
 	}
-	newSlackClient := func(*config.Config) slack.ClientIface {
+	newSlackClient := func(*config.Config) (slack.ClientIface, error) {
 		repo.calls = append(repo.calls, "slack")
-		return slack.NewFakeClient(zap.NewNop())
+		return slack.NewFakeClient(zap.NewNop()), nil
 	}
 	var res *DeployResult
 	var err error
@@ -208,13 +208,46 @@ func TestRunDeploy_RecordsRevision(t *testing.T) {
 	repo := &fakeRepo{conf: &config.Config{Hosts: []config.Host{{Name: "web01", Host: "10.0.0.1"}}}}
 	conf := ConfigDeploy{GitRevision: "master", IgnoreDrift: true}
 	conf.Reporter = NewRecordingReporter()
-	newSlackClient := func(*config.Config) slack.ClientIface { return slack.NewFakeClient(zap.NewNop()) }
+	newSlackClient := func(*config.Config) (slack.ClientIface, error) { return slack.NewFakeClient(zap.NewNop()), nil }
 	assertNoStdout(t, func() {
 		if _, err := runDeploy(conf, ctx, zaptest.NewLogger(t), repo, newSlackClient, deployersWith(m, "web01"),
 			lockersWith(map[string]*hoststate.FakeShell{"web01": hoststate.NewFakeShell("10.0.0.1")})); err != nil {
 			t.Fatal(err)
 		}
 	})
+}
+
+func TestRunDeploy_SlackFailureWarnsAndContinues(t *testing.T) {
+	for name, newSlackClient := range map[string]newSlackClientFunc{
+		"send fails": func(*config.Config) (slack.ClientIface, error) {
+			return slack.NewFailingClient(errors.New("channel_not_found")), nil
+		},
+		"client fails": func(*config.Config) (slack.ClientIface, error) { return nil, errors.New("slack token is not set") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := mock_shell.NewMockIface(gomock.NewController(t))
+			m.EXPECT().Host().Return("10.0.0.1").AnyTimes()
+			m.EXPECT().Execf(gomock.Any(), "", `mkdir -p %s && printf '%%s\n' %s > %s`,
+				"'/var/lib/isucontinuous'", "abc1234", "'/var/lib/isucontinuous/last-revision'").
+				Return(bytes.Buffer{}, bytes.Buffer{}, nil)
+			m.EXPECT().Execf(gomock.Any(), "", `rm -f %s`, "'/tmp/isucontinuous/last-revision'").
+				Return(bytes.Buffer{}, bytes.Buffer{}, nil)
+			repo := &fakeRepo{conf: &config.Config{
+				Slack: config.Slack{DefaultChannelId: "C123"},
+				Hosts: []config.Host{{Name: "web01", Host: "10.0.0.1"}},
+			}}
+			conf := ConfigDeploy{GitRevision: "master", IgnoreDrift: true}
+			conf.Reporter = NewRecordingReporter()
+			res, err := runDeploy(conf, context.Background(), zaptest.NewLogger(t), repo, newSlackClient, deployersWith(m, "web01"),
+				lockersWith(map[string]*hoststate.FakeShell{"web01": hoststate.NewFakeShell("10.0.0.1")}))
+			if err != nil {
+				t.Fatalf("deploy must continue: %v", err)
+			}
+			if len(res.Warnings) == 0 || !strings.HasPrefix(res.Warnings[0], "slack: ") {
+				t.Errorf("warnings = %v, want slack warnings", res.Warnings)
+			}
+		})
+	}
 }
 
 func TestRunDiff(t *testing.T) {

@@ -28,7 +28,20 @@ type SyncResult struct{ Result }
 
 type ProfilingResult struct{ Result }
 
-type AfterBenchResult struct{ Result }
+// Artifact is a file that afterbench produced on a host. Size is the original byte count;
+// Note is set when a front end shortened or dropped Content.
+type Artifact struct {
+	Host    string
+	Path    string
+	Size    int
+	Content string
+	Note    string
+}
+
+type AfterBenchResult struct {
+	Result
+	Artifacts []Artifact
+}
 
 type DeployResult struct {
 	Result
