@@ -16,16 +16,16 @@ type ConfigSync struct {
 	GitBranch string
 }
 
-func RunSync(conf ConfigSync) error {
+func RunSync(conf ConfigSync) (*SyncResult, error) {
 	ctx := context.Background()
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Attach local-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return runSync(conf, ctx, logger, repo)
 }
@@ -33,23 +33,23 @@ func RunSync(conf ConfigSync) error {
 func runSync(
 	conf ConfigSync, ctx context.Context, logger *zap.Logger,
 	repo localrepo.LocalRepoIface,
-) error {
+) (*SyncResult, error) {
 	logger.Info("start sync")
 	defer func() { logger.Info("finish sync") }()
 	// if current branch is detached, exec `git reset --hard``
 	if _, err := repo.CurrentBranch(ctx); err != nil && errors.As(err, &myerrors.GitBranchIsDetached{}) {
 		if err := repo.Reset(ctx); err != nil {
-			return err
+			return nil, err
 		}
 	} else if err != nil {
-		return err
+		return nil, err
 	}
 	// Fetch remote-repo & switch to gitBranch
 	if err := repo.Fetch(ctx); err != nil {
-		return err
+		return nil, err
 	}
 	if err := repo.SwitchAndMerge(ctx, conf.GitBranch); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return &SyncResult{}, nil
 }

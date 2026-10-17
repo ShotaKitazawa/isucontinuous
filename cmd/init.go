@@ -25,7 +25,8 @@ var initCmd = &cobra.Command{
 			GitEmail:     gitEmail,
 			GitRemoteUrl: gitRemoteUrl,
 		}
-		return cmd.RunInit(conf)
+		_, err := cmd.RunInit(conf)
+		return err
 	},
 }
 

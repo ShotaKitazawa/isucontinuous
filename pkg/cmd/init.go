@@ -19,29 +19,29 @@ type ConfigInit struct {
 	GitRemoteUrl string
 }
 
-func RunInit(conf ConfigInit) error {
+func RunInit(conf ConfigInit) (*InitResult, error) {
 	ctx := context.Background()
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return runInit(conf, ctx, logger)
 }
 
-func runInit(conf ConfigInit, ctx context.Context, logger *zap.Logger) error {
+func runInit(conf ConfigInit, ctx context.Context, logger *zap.Logger) (*InitResult, error) {
 	logger.Info("start init")
 	defer func() { logger.Info("finish init") }()
 	// Create local-repo directory if does not existed
 	if _, err := os.Stat(conf.LocalRepoPath); err == nil {
-		return myerrors.NewErrorFileAlreadyExisted(conf.LocalRepoPath)
+		return nil, myerrors.NewErrorFileAlreadyExisted(conf.LocalRepoPath)
 	}
 	if err := os.Mkdir(filepath.Clean(conf.LocalRepoPath), 0755); err != nil {
-		return err
+		return nil, err
 	}
 	// Initialize local-repo
 	_, err := localrepo.InitLocalRepo(logger, exec.New(), conf.LocalRepoPath, conf.GitUsername, conf.GitEmail, conf.GitRemoteUrl)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return &InitResult{}, nil
 }

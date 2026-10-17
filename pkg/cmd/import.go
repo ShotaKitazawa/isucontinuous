@@ -18,16 +18,16 @@ type ConfigImport struct {
 	ConfigCommon
 }
 
-func RunImport(conf ConfigImport) error {
+func RunImport(conf ConfigImport) (*ImportResult, error) {
 	ctx := context.Background()
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Attach local isucon-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return runImport(conf, ctx, logger, repo, imports.NewImporters)
 }
@@ -35,25 +35,25 @@ func RunImport(conf ConfigImport) error {
 func runImport(
 	conf ConfigImport, ctx context.Context, logger *zap.Logger,
 	repo localrepo.LocalRepoIface, newImporters imports.NewImportersFunc,
-) error {
+) (*ImportResult, error) {
 	logger.Info("start import")
 	defer func() { logger.Info("finish import") }()
 	// Check currentBranch
 	if _, err := repo.CurrentBranch(ctx); err != nil {
-		return err
+		return nil, err
 	}
 	// load isucontinuous.yaml
 	isucontinuous, err := repo.LoadConf()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Set importers
 	importers, err := newImporters(logger, isucontinuous.Hosts)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Import files from per host
-	return perHostExec(logger, ctx, isucontinuous.Hosts, []task{{
+	hosts, err := perHostExec(logger, ctx, conf.reporter(), isucontinuous.Hosts, []task{{
 		"Import",
 		func(ctx context.Context, host config.Host) error {
 			importer := importers[host.Host]
@@ -93,4 +93,5 @@ func runImport(
 			return nil
 		},
 	}})
+	return &ImportResult{Result{Hosts: hosts}}, err
 }

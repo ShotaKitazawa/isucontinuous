@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/cmd"
@@ -22,7 +24,11 @@ var profilingCmd = &cobra.Command{
 				LocalRepoPath: localRepo,
 			},
 		}
-		return cmd.RunProfiling(conf)
+		r, err := cmd.RunProfiling(conf)
+		if r != nil {
+			printWarnings(os.Stderr, r.Warnings)
+		}
+		return err
 	},
 }
 

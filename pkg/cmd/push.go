@@ -17,16 +17,16 @@ type ConfigPush struct {
 	Message   string
 }
 
-func RunPush(conf ConfigPush) error {
+func RunPush(conf ConfigPush) (*PushResult, error) {
 	ctx := context.Background()
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Attach local-repo
 	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return runPush(conf, ctx, logger, repo)
 }
@@ -34,25 +34,25 @@ func RunPush(conf ConfigPush) error {
 func runPush(
 	conf ConfigPush, ctx context.Context, logger *zap.Logger,
 	repo localrepo.LocalRepoIface,
-) error {
+) (*PushResult, error) {
 	logger.Info("start push")
 	defer func() { logger.Info("finish push") }()
 	// Check currentBranch
 	currentBranch, err := repo.CurrentBranch(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	} else if currentBranch != conf.GitBranch {
 		if currentBranch == "" {
 			currentBranch = "<detached>"
 		}
-		return fmt.Errorf(
+		return nil, fmt.Errorf(
 			"current branch name is %s. Please exec `sync` command first to checkout to %s.",
 			currentBranch, conf.GitBranch,
 		)
 	}
 	// Fetch
 	if err := repo.Fetch(ctx); err != nil {
-		return err
+		return nil, err
 	}
 	// Validate whether ${BRANCH} == remotes/origin/${BRANCH}
 	if ok, err := repo.DiffWithRemote(ctx); err != nil {
@@ -60,25 +60,18 @@ func runPush(
 		case myerrors.GitBranchIsFirstCommit:
 			// pass
 		default:
-			return err
+			return nil, err
 		}
 	} else if !ok {
-		return fmt.Errorf("there are differences between %s and remotes/origin/%s", conf.GitBranch, conf.GitBranch)
+		return nil, fmt.Errorf("there are differences between %s and remotes/origin/%s", conf.GitBranch, conf.GitBranch)
 	}
 	// Execute add, commit, and push
-	result, err := repo.Push(ctx, conf.Message)
+	pushed, err := repo.Push(ctx, conf.Message)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	for _, f := range result.Files {
-		if f.Deleted {
-			fmt.Printf("committed: %s (deleted)\n", f.Path)
-		} else {
-			fmt.Printf("committed: %s (%d bytes)\n", f.Path, f.Size)
-		}
-	}
-	for _, w := range result.Warnings {
-		fmt.Printf("warning: %s\n", w)
-	}
-	return nil
+	return &PushResult{
+		Result: Result{Warnings: pushed.Warnings},
+		Files:  pushed.Files,
+	}, nil
 }

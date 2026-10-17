@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/cmd"
@@ -23,7 +25,11 @@ var afterbenchCmd = &cobra.Command{
 			},
 			SlackToken: deploySlackToken,
 		}
-		return cmd.RunAfterBench(conf)
+		r, err := cmd.RunAfterBench(conf)
+		if r != nil {
+			printWarnings(os.Stderr, r.Warnings)
+		}
+		return err
 	},
 }
 

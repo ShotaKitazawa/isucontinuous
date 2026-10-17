@@ -2,22 +2,28 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"sync"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
-	"github.com/cheggaaa/pb"
+	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 )
 
 type ConfigCommon struct {
 	LogLevel      string
 	LogFilename   string
 	LocalRepoPath string
+	Reporter      Reporter
+}
+
+func (c ConfigCommon) reporter() Reporter {
+	if c.Reporter == nil {
+		return NewProgressReporter()
+	}
+	return c.Reporter
 }
 
 func newLogger(logLevel, logfile string) (*zap.Logger, error) {
@@ -52,44 +58,37 @@ type task struct {
 	f    taskFunc
 }
 
-func perHostExec(logger *zap.Logger, ctx context.Context, hosts []config.Host, tasks []task) error {
+func perHostExec(
+	logger *zap.Logger, ctx context.Context, reporter Reporter, hosts []config.Host, tasks []task,
+) ([]HostResult, error) {
+	names := make([]string, len(hosts))
+	results := make([]HostResult, len(hosts))
+	for idx, host := range hosts {
+		names[idx] = host.Host
+		results[idx] = HostResult{Host: host.Host}
+	}
+	if err := reporter.Open(names, len(tasks)); err != nil {
+		return results, err
+	}
+	defer reporter.Close()
 	eg, ctx := errgroup.WithContext(ctx)
-	pbs := make([]*pb.ProgressBar, len(hosts))
-	var mu sync.RWMutex
 	for idx, host := range hosts {
 		idx := idx
 		host := host
-		pbs[idx] = pb.New(len(tasks)).SetMaxWidth(80)
 		eg.Go(func() error {
 			for _, task := range tasks {
-				mu.Lock()
-				pbs[idx] = pbs[idx].Prefix(fmt.Sprintf("[%s] %s", host.Host, task.name))
-				mu.Unlock()
+				reporter.TaskStarted(host.Host, task.name)
 				if err := task.f(ctx, host); err != nil {
 					logger.Error(err.Error(), zap.String("host", host.Host))
-					return err
+					reporter.TaskFailed(host.Host, task.name, err)
+					return myerrors.NewErrorHostTask(host.Host, task.name, err)
 				}
-				mu.Lock()
-				pbs[idx].Increment()
-				mu.Unlock()
+				reporter.TaskDone(host.Host, task.name)
+				results[idx].Tasks = append(results[idx].Tasks, task.name)
 			}
-			mu.Lock()
-			pbs[idx].Prefix(fmt.Sprintf("[%s] %s", host.Host, "Done!"))
-			mu.Unlock()
 			return nil
 		})
 	}
-	mu.RLock()
-	pool, err := pb.StartPool(pbs...)
-	mu.RUnlock()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = pool.Stop()
-	}()
-	if err := eg.Wait(); err != nil {
-		return err
-	}
-	return nil
+	err := eg.Wait()
+	return results, err
 }

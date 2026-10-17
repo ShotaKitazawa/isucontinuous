@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/ShotaKitazawa/isucontinuous/pkg/cmd"
 	"github.com/spf13/cobra"
 )
@@ -24,7 +26,12 @@ var deployCmd = &cobra.Command{
 			Force:       deployForce,
 			SlackToken:  deploySlackToken,
 		}
-		return cmd.RunDeploy(conf)
+		r, err := cmd.RunDeploy(conf)
+		printDeployResult(os.Stdout, r)
+		if r != nil {
+			printWarnings(os.Stderr, r.Warnings)
+		}
+		return err
 	},
 }
 

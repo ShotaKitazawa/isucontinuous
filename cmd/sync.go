@@ -23,7 +23,8 @@ var syncCmd = &cobra.Command{
 			},
 			GitBranch: syncGitBranch,
 		}
-		return cmd.RunSync(conf)
+		_, err := cmd.RunSync(conf)
+		return err
 	},
 }
 
