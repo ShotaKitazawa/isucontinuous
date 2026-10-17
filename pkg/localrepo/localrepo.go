@@ -52,6 +52,8 @@ type LocalRepoIface interface {
 	SetRevision(ctx context.Context, revision string) error
 	ClearRevision(ctx context.Context) error
 	GetHeadInfo(ctx context.Context) (string, string, error)
+	ResolveRevision(ctx context.Context, revision string) (string, error)
+	ShowFile(ctx context.Context, hash, path string) ([]byte, bool, error)
 }
 
 type LocalRepo struct {
@@ -335,6 +337,36 @@ func (l *LocalRepo) GetHeadInfo(ctx context.Context) (string, string, error) {
 	}
 	msg := stdout.String()
 	return hash, msg, nil
+}
+
+// ResolveRevision resolves revision to a commit hash without moving the working tree.
+// The remote-tracking branch is tried first, like SwitchDetachedBranch.
+func (l *LocalRepo) ResolveRevision(ctx context.Context, revision string) (string, error) {
+	if err := validateRef(revision); err != nil {
+		return "", err
+	}
+	for _, ref := range []string{"remotes/origin/" + revision, revision} {
+		if stdout, _, err := l.shell.ExecArgs(ctx, l.absPath, "git", "rev-parse", "--verify", "--quiet", ref+"^{commit}"); err == nil {
+			return stdout.String(), nil
+		}
+	}
+	return "", fmt.Errorf("unknown revision: %q", revision)
+}
+
+// ShowFile returns the content of path at the commit hash; found is false if the commit has no such file.
+func (l *LocalRepo) ShowFile(ctx context.Context, hash, path string) (content []byte, found bool, err error) {
+	if err := validateRef(hash); err != nil {
+		return nil, false, err
+	}
+	object := hash + ":" + path
+	if _, _, err := l.shell.ExecArgs(ctx, l.absPath, "git", "cat-file", "-e", object); err != nil {
+		return nil, false, nil
+	}
+	stdout, stderr, err := l.shell.ExecArgsRaw(ctx, l.absPath, "git", "show", object)
+	if err != nil {
+		return nil, false, myerrors.NewErrorCommandExecutionFailed(stderr)
+	}
+	return stdout.Bytes(), true, nil
 }
 
 // validateRef follows git check-ref-format; revision expressions such as HEAD~1 are rejected on purpose.

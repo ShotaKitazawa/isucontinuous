@@ -3,6 +3,7 @@ package shell
 import (
 	"bytes"
 	"context"
+	"strings"
 )
 
 type Iface interface {
@@ -10,10 +11,16 @@ type Iface interface {
 	Exec(ctx context.Context, basedir string, command string) (bytes.Buffer, bytes.Buffer, error)
 	Execf(ctx context.Context, basedir string, command string, a ...interface{}) (bytes.Buffer, bytes.Buffer, error)
 	Deploy(ctx context.Context, src, dst string) error
+	ReadFile(ctx context.Context, path string) ([]byte, error)
 }
 
 func trimNewLine(buf bytes.Buffer) bytes.Buffer {
 	b := buf.Bytes()
 	b = bytes.TrimRight(b, "\n")
 	return *bytes.NewBuffer(b)
+}
+
+// Quote wraps s in single quotes so that the remote shell never interprets it.
+func Quote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }

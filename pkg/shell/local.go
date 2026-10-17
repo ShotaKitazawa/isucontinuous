@@ -40,6 +40,12 @@ func (c *LocalClient) Exec(ctx context.Context, basedir string, command string) 
 
 // ExecArgs runs name with args without a shell, so values never get interpreted as shell syntax.
 func (c *LocalClient) ExecArgs(ctx context.Context, basedir string, name string, args ...string) (bytes.Buffer, bytes.Buffer, error) {
+	stdout, stderr, err := c.ExecArgsRaw(ctx, basedir, name, args...)
+	return trimNewLine(stdout), trimNewLine(stderr), err
+}
+
+// ExecArgsRaw is ExecArgs without trimming trailing newlines, for output that is hashed or stored as file content.
+func (c *LocalClient) ExecArgsRaw(ctx context.Context, basedir string, name string, args ...string) (bytes.Buffer, bytes.Buffer, error) {
 	stdout := bytes.Buffer{}
 	stderr := bytes.Buffer{}
 	cc := c.exec.CommandContext(ctx, name, args...)
@@ -49,11 +55,15 @@ func (c *LocalClient) ExecArgs(ctx context.Context, basedir string, name string,
 	cc.SetStdout(&stdout)
 	cc.SetStderr(&stderr)
 	err := cc.Run()
-	return trimNewLine(stdout), trimNewLine(stderr), err
+	return stdout, stderr, err
 }
 
 func (c *LocalClient) Execf(ctx context.Context, basedir string, command string, a ...interface{}) (bytes.Buffer, bytes.Buffer, error) {
 	return c.Exec(ctx, basedir, fmt.Sprintf(command, a...))
+}
+
+func (c *LocalClient) ReadFile(ctx context.Context, path string) ([]byte, error) {
+	return os.ReadFile(path)
 }
 
 func (c *LocalClient) Deploy(ctx context.Context, src, dst string) error {
@@ -61,6 +71,7 @@ func (c *LocalClient) Deploy(ctx context.Context, src, dst string) error {
 	if err != nil {
 		return err
 	}
+	defer s.Close()
 	d, err := os.Create(dst)
 	if err != nil {
 		return err

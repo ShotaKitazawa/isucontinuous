@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -16,6 +17,9 @@ type SshClient struct {
 	*ssh.Client
 	host   string
 	target string
+
+	sftpMu sync.Mutex
+	sftp   *sftp.Client
 }
 
 func (c *SshClient) Host() string {
@@ -64,7 +68,7 @@ func NewSshClient(host string, port int, user, password, keyfile string) (*SshCl
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect: %v", err)
 	}
-	return &SshClient{conn, host, target}, nil
+	return &SshClient{Client: conn, host: host, target: target}, nil
 }
 
 func (c *SshClient) Exec(ctx context.Context, basedir string, command string) (bytes.Buffer, bytes.Buffer, error) {
@@ -93,18 +97,32 @@ func (c *SshClient) Execf(ctx context.Context, basedir string, cmd string, a ...
 	return c.Exec(ctx, basedir, fmt.Sprintf(cmd, a...))
 }
 
+// sftpClient is created once per host because opening a subsystem per file costs a round trip over WAN.
+func (c *SshClient) sftpClient() (*sftp.Client, error) {
+	c.sftpMu.Lock()
+	defer c.sftpMu.Unlock()
+	if c.sftp != nil {
+		return c.sftp, nil
+	}
+	client, err := sftp.NewClient(c.Client)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create session: %v", err)
+	}
+	c.sftp = client
+	return client, nil
+}
+
 func (c *SshClient) Deploy(ctx context.Context, src, dst string) error {
 	s, err := os.Open(src)
 	if err != nil {
 		return err
 	}
+	defer s.Close()
 
-	client, err := sftp.NewClient(c.Client)
+	client, err := c.sftpClient()
 	if err != nil {
-		return fmt.Errorf("Failed to create session: %v", err)
+		return err
 	}
-	defer client.Close()
-
 	d, err := client.Create(dst)
 	if err != nil {
 		return err
@@ -115,4 +133,17 @@ func (c *SshClient) Deploy(ctx context.Context, src, dst string) error {
 		return err
 	}
 	return nil
+}
+
+func (c *SshClient) ReadFile(ctx context.Context, path string) ([]byte, error) {
+	client, err := c.sftpClient()
+	if err != nil {
+		return nil, err
+	}
+	f, err := client.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(f)
 }

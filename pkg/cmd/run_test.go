@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io/ioutil"
@@ -8,11 +9,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/config"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
+	mock_shell "github.com/ShotaKitazawa/isucontinuous/pkg/shell/mock"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/slack"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/template"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/deploy"
@@ -52,8 +56,12 @@ func (f *fakeRepo) SetRevision(ctx context.Context, r string) error {
 	f.revision = r
 	return nil
 }
+func (f *fakeRepo) ResolveRevision(ctx context.Context, r string) (string, error) {
+	f.calls = append(f.calls, "resolve:"+r)
+	return "0123456789abcdef0123456789abcdef01234567", nil
+}
 func (f *fakeRepo) GetHeadInfo(ctx context.Context) (string, string, error) {
-	return "abc123", "message", nil
+	return "abc1234", "message", nil
 }
 
 func assertNoStdout(t *testing.T, f func()) {
@@ -140,7 +148,7 @@ func TestRunDeploy_Result(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Hash != "abc123" || res.Message != "message" || res.Revision != "master" {
+	if res.Hash != "abc1234" || res.Message != "message" || res.Revision != "master" {
 		t.Errorf("result = %+v", res)
 	}
 	if repo.revision != "master" {
@@ -149,6 +157,88 @@ func TestRunDeploy_Result(t *testing.T) {
 	if want := "switch,slack"; strings.Join(repo.calls, ",") != want {
 		t.Errorf("calls = %v, want %s", repo.calls, want)
 	}
+}
+
+func deployersWith(m shell.Iface, names ...string) deploy.NewDeployersFunc {
+	return func(l *zap.Logger, t *template.Templator, repoPath string, _ []config.Host) (map[string]*deploy.Deployer, error) {
+		deployers := make(map[string]*deploy.Deployer)
+		for _, n := range names {
+			deployers[n] = deploy.NewWithShell(l, m, t, repoPath)
+		}
+		return deployers, nil
+	}
+}
+
+func TestRunDeploy_RecordsRevision(t *testing.T) {
+	ctx := context.Background()
+	m := mock_shell.NewMockIface(gomock.NewController(t))
+	m.EXPECT().Host().Return("10.0.0.1").AnyTimes()
+	m.EXPECT().Execf(gomock.Any(), "", `mkdir -p %s && printf '%%s\n' %s > %s`,
+		"'/var/lib/isucontinuous'", "abc1234", "'/var/lib/isucontinuous/last-revision'").
+		Return(bytes.Buffer{}, bytes.Buffer{}, nil)
+	m.EXPECT().Execf(gomock.Any(), "", `rm -f %s`, "'/tmp/isucontinuous/last-revision'").
+		Return(bytes.Buffer{}, bytes.Buffer{}, nil)
+	repo := &fakeRepo{conf: &config.Config{Hosts: []config.Host{{Name: "web01", Host: "10.0.0.1"}}}}
+	conf := ConfigDeploy{GitRevision: "master"}
+	conf.Reporter = NewRecordingReporter()
+	newSlackClient := func(*config.Config) slack.ClientIface { return slack.NewFakeClient(zap.NewNop()) }
+	assertNoStdout(t, func() {
+		if _, err := runDeploy(conf, ctx, zaptest.NewLogger(t), repo, newSlackClient, deployersWith(m, "web01")); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestRunDiff(t *testing.T) {
+	ctx := context.Background()
+	const lastCmd = `cat %s 2>/dev/null || cat %s 2>/dev/null || true`
+	hosts := []config.Host{{Name: "web01", Host: "10.0.0.1"}}
+	run := func(t *testing.T, conf ConfigDiff, m shell.Iface, repo *fakeRepo) *DiffResult {
+		t.Helper()
+		conf.Reporter = NewRecordingReporter()
+		var res *DiffResult
+		var err error
+		assertNoStdout(t, func() {
+			res, err = runDiff(conf, ctx, zaptest.NewLogger(t), repo, deployersWith(m, "web01"))
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+
+	t.Run("no record of the last deployed revision", func(t *testing.T) {
+		m := mock_shell.NewMockIface(gomock.NewController(t))
+		m.EXPECT().Execf(gomock.Any(), "", lastCmd, gomock.Any(), gomock.Any()).Return(bytes.Buffer{}, bytes.Buffer{}, nil)
+		repo := &fakeRepo{conf: &config.Config{Hosts: hosts}}
+		res := run(t, ConfigDiff{}, m, repo)
+		if len(res.Diffs) != 1 || !res.Diffs[0].NoRecord || res.Diffs[0].Host != "web01" {
+			t.Errorf("Diffs = %+v", res.Diffs)
+		}
+		if len(repo.calls) != 0 {
+			t.Errorf("the repo must not be touched: %v", repo.calls)
+		}
+	})
+	t.Run("last deployed revision", func(t *testing.T) {
+		m := mock_shell.NewMockIface(gomock.NewController(t))
+		m.EXPECT().Host().Return("10.0.0.1").AnyTimes()
+		m.EXPECT().Execf(gomock.Any(), "", lastCmd, gomock.Any(), gomock.Any()).
+			Return(*bytes.NewBufferString("abc1234\n"), bytes.Buffer{}, nil)
+		m.EXPECT().Exec(gomock.Any(), "", "command -v sha256sum >/dev/null 2>&1").Return(bytes.Buffer{}, bytes.Buffer{}, nil)
+		res := run(t, ConfigDiff{}, m, &fakeRepo{conf: &config.Config{Hosts: hosts}})
+		if d := res.Diffs[0]; d.NoRecord || d.Revision != "abc1234" || len(d.Changes) != 0 {
+			t.Errorf("Diffs = %+v", res.Diffs)
+		}
+	})
+	t.Run("explicit revision", func(t *testing.T) {
+		m := mock_shell.NewMockIface(gomock.NewController(t))
+		m.EXPECT().Host().Return("10.0.0.1").AnyTimes()
+		m.EXPECT().Exec(gomock.Any(), "", "command -v sha256sum >/dev/null 2>&1").Return(bytes.Buffer{}, bytes.Buffer{}, nil)
+		res := run(t, ConfigDiff{GitRevision: "feature"}, m, &fakeRepo{conf: &config.Config{Hosts: hosts}})
+		if d := res.Diffs[0]; d.Revision != "0123456789abcdef0123456789abcdef01234567" {
+			t.Errorf("Diffs = %+v", res.Diffs)
+		}
+	})
 }
 
 func TestRunPush_PlaintextPasswordWarning(t *testing.T) {
