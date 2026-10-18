@@ -29,7 +29,7 @@ Slack を使うかどうかは `isucontinuous.yaml` の `slack.default_channel_i
 
 ## MCP サーバとして使う
 
-`isucontinuous mcp` は、開発ループで使うCLIサブコマンド (`setup`, `deploy`, `diff`, `status`, `profiling`, `afterbench`, `release`) をMCPのツールとしてstdioで公開します。MCPクライアントが各開発者のローカルPC上でプロセスを起動する前提で、対象サーバにはSSHで接続します。repositoryの初期化・取り込み・復旧に使う`init`、`sync`、`import`、`push`は、実行場所と状態を人間が確認してCLIから実行します。
+`isucontinuous mcp` は、開発ループで使うCLIサブコマンド (`setup`, `deploy`, `diff`, `status`, `profiling`, `afterbench`, `release`) をMCPのツールとしてstdioで公開します。MCPクライアントが各開発者のローカルPC上でプロセスを起動する前提で、対象サーバにはSSHで接続します。repositoryの初期化・取り込みに使う`init`と`import`は、実行場所と状態を人間が確認してCLIから実行します。同期とpushは`import`の内部フェーズであり、独立したCLI/MCP toolとしては公開しません。
 
 Claude Code に登録する例:
 

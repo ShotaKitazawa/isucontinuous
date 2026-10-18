@@ -47,7 +47,7 @@ flowchart LR
 
 ### 入口を共有する仕組み
 
-`pkg/cmd` の各操作は `ConfigXxx` を受け取り、`*XxxResult` と `error` を返す。CLIは結果を人間向けに表示し、MCPは同じ結果を構造化データとして返す。`init`、`sync`、`import`、`push` は実行場所とrepository状態を人間が確認する必要があるためCLI専用である。MCPが公開するのは `setup`、`deploy`、`diff`、`status`、`profiling`、`afterbench`、`release` である。
+`pkg/cmd` の各操作は `ConfigXxx` を受け取り、`*XxxResult` と `error` を返す。CLIは結果を人間向けに表示し、MCPは同じ結果を構造化データとして返す。`init`と`import`は実行場所とrepository状態を人間が確認する必要があるためCLI専用である。同期とpushは独立コマンドではなく、`import`の内部フェーズとしてのみ実行する。MCPが公開するのは `setup`、`deploy`、`diff`、`status`、`profiling`、`afterbench`、`release` である。
 
 ホストごとの進捗は `Reporter` インターフェースへ送る。
 
@@ -122,7 +122,7 @@ sequenceDiagram
     C->>R: local-repo lockを解放
 ```
 
-取得に失敗した場合はpushせず、取得済みファイルを作業ツリーに残す。pushに失敗した場合はlocal commitを残すため、原因を直してCLIの`push`を再実行できる。単独の`sync`と`push`はこのような復旧用に残している。
+取得に失敗した場合はpushせず、取得済みファイルを作業ツリーに残す。pushに失敗した場合はlocal commitを残す。原因を直し、ホストロックが残っていれば`release`したうえで`import`を再実行する。同じホスト内容の再取得では追加commitを作らず、残っているlocal commitをpushする。単独の`sync`と`push`コマンドは持たない。
 
 import先のpathは各componentを`Lstat`で検査し、local-repo内のsymlinkを辿らない。host directory自体がsymlinkならremote read前にhost全体をskipし、下位のsymlinkなら影響するfile/subtreeだけをskipして警告する。一方deployはrepository内のsymlinkを辿る。この非対称性により、2、3台目の共通コンテンツを1台目のdirectoryへのsymlinkで配る従来運用を維持できる。
 

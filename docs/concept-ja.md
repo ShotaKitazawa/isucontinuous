@@ -17,14 +17,6 @@ isucontinuous には以下のそれぞれのフェーズを意識したコマン
 
 <img src="./images/import.jpg?raw=true" width=533 height=300>
 
-* `push`: importのpush失敗時などに、Git ローカルリポジトリのcommitを再度pushする
-
-<img src="./images/push.jpg?raw=true" width=533 height=300>
-
-* `sync`: importを完了できない作業ツリーの復旧時などに、Git リモートリポジトリの内容を反映する
-
-<img src="./images/sync.jpg?raw=true" width=533 height=300>
-
 * `deploy`: 任意のリビジョンにおける Git リモートリポジトリ管理下のファイルをサーバ上にデプロイする
 
 <img src="./images/deploy.jpg?raw=true" width=533 height=300>
@@ -63,4 +55,4 @@ isucontinuous には以下のそれぞれのフェーズを意識したコマン
 1. isucontinuous.yaml に新たな import/deploy 対象を追記
 1. 1台目の対象サーバ上で`import` : remote branchとの同期、対象ファイルの取得、commit、pushを一度に実行
 
-`import`の取得失敗時は取得済みファイルが作業ツリーに、push失敗時はcommitがローカルに残ります。原因を解消した後は、必要に応じて単独の`sync`または`push`で復旧します。
+`import`の取得失敗時は取得済みファイルが作業ツリーに、push失敗時はcommitがローカルに残ります。原因を解消し、ホストロックが残っていれば`release`した後、`import`を再実行します。
