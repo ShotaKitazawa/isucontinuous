@@ -37,10 +37,20 @@ type PushResult struct {
 	Warnings []string
 }
 
+// SymlinkInWritePath reports a symlink that would be followed while writing an imported file.
+type SymlinkInWritePath struct {
+	Path string
+}
+
+func (e *SymlinkInWritePath) Error() string {
+	return fmt.Sprintf("refusing to write through symlink %q", e.Path)
+}
+
 type LocalRepoIface interface {
 	LoadConf() (*config.Config, error)
 	HasDisabledHost() (bool, error)
 	HasPlaintextPassword() (bool, error)
+	ValidateWritePath(name string) error
 	CreateFile(name string, data []byte, perm os.FileMode) error
 	Fetch(ctx context.Context) error
 	SwitchAndMerge(ctx context.Context, branch string) error
@@ -189,13 +199,46 @@ func (l *LocalRepo) HasPlaintextPassword() (bool, error) {
 }
 
 func (l *LocalRepo) CreateFile(name string, data []byte, perm os.FileMode) error {
+	if err := l.ValidateWritePath(name); err != nil {
+		return err
+	}
 	fileAbsPath := filepath.Join(l.absPath, name)
 	if _, err := os.Stat(fileAbsPath); err != nil {
 		if err := os.MkdirAll(filepath.Dir(fileAbsPath), 0755); err != nil {
 			return err
 		}
 	}
-	return os.WriteFile(filepath.Join(l.absPath, name), data, perm)
+	if err := l.ValidateWritePath(name); err != nil {
+		return err
+	}
+	return os.WriteFile(fileAbsPath, data, perm)
+}
+
+func (l *LocalRepo) ValidateWritePath(name string) error {
+	clean := filepath.Clean(name)
+	if clean == "." || filepath.IsAbs(name) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("write path must stay inside local-repo: %q", name)
+	}
+
+	current := l.absPath
+	for _, component := range strings.Split(clean, string(filepath.Separator)) {
+		current = filepath.Join(current, component)
+		info, err := os.Lstat(current)
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			rel, err := filepath.Rel(l.absPath, current)
+			if err != nil {
+				return err
+			}
+			return &SymlinkInWritePath{Path: rel}
+		}
+	}
+	return nil
 }
 
 func (l *LocalRepo) Fetch(ctx context.Context) error {

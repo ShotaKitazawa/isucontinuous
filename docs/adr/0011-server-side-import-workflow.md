@@ -1,6 +1,6 @@
 ---
 status: proposed
-pr: nil
+pr: "#50"
 date: 2026-10-18
 related: [ADR-0003, ADR-0005, ADR-0006, ADR-0009, ADR-0012]
 ---

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -64,6 +65,10 @@ func runImport(
 		return &ImportResult{Result{Warnings: isucontinuous.Warnings}}, err
 	}
 	defer unlock()
+	warnings := &warningList{}
+	for _, warning := range isucontinuous.Warnings {
+		warnings.AddUnique(warning)
+	}
 	// Set importers
 	importers, err := newImporters(logger, isucontinuous.Hosts)
 	if err != nil {
@@ -73,6 +78,13 @@ func runImport(
 	hosts, err := perHostExec(logger, ctx, conf.reporter(), isucontinuous.Hosts, []task{{
 		"Import",
 		func(ctx context.Context, host config.Host) error {
+			skip, err := checkImportDestination(repo, warnings, host.Name, host.Name)
+			if err != nil {
+				return err
+			}
+			if skip {
+				return nil
+			}
 			importer := importers[host.Name]
 			for _, target := range host.ListTarget() {
 				switch importer.FileType(ctx, target.Target) {
@@ -80,11 +92,24 @@ func runImport(
 					logger.Info(fmt.Sprintf("%s is not found: skip", target.Target), zap.String("host", host.Name))
 					continue
 				case imports.IsFile:
+					destination := filepath.Join(host.Name, target.Src)
+					skip, err := checkImportDestination(repo, warnings, host.Name, destination)
+					if err != nil {
+						return err
+					}
+					if skip {
+						continue
+					}
 					content, mode, err := importer.GetFileContent(ctx, target.Target)
 					if err != nil {
 						return err
 					}
-					if err := repo.CreateFile(filepath.Join(host.Name, target.Src), content, mode); err != nil {
+					if err := repo.CreateFile(destination, content, mode); err != nil {
+						var symlink *localrepo.SymlinkInWritePath
+						if errors.As(err, &symlink) {
+							addImportSymlinkWarning(warnings, host.Name, symlink.Path)
+							continue
+						}
 						return err
 					}
 				case imports.IsDirectory:
@@ -94,12 +119,25 @@ func runImport(
 					}
 					files = importer.ExcludeSymlinkFiles(ctx, files)
 					for _, file := range files {
+						destination := filepath.Join(host.Name, target.Src, file)
+						skip, err := checkImportDestination(repo, warnings, host.Name, destination)
+						if err != nil {
+							return err
+						}
+						if skip {
+							continue
+						}
 						fileAbsPath := filepath.Join(target.Target, file)
 						content, mode, err := importer.GetFileContent(ctx, fileAbsPath)
 						if err != nil {
 							return err
 						}
-						if err := repo.CreateFile(filepath.Join(host.Name, target.Src, file), content, mode); err != nil {
+						if err := repo.CreateFile(destination, content, mode); err != nil {
+							var symlink *localrepo.SymlinkInWritePath
+							if errors.As(err, &symlink) {
+								addImportSymlinkWarning(warnings, host.Name, symlink.Path)
+								continue
+							}
 							return err
 						}
 					}
@@ -110,5 +148,22 @@ func runImport(
 			return nil
 		},
 	}})
-	return &ImportResult{Result{Hosts: hosts, Warnings: isucontinuous.Warnings}}, err
+	return &ImportResult{Result{Hosts: hosts, Warnings: warnings.List()}}, err
+}
+
+func checkImportDestination(repo localrepo.LocalRepoIface, warnings *warningList, host, destination string) (bool, error) {
+	err := repo.ValidateWritePath(destination)
+	if err == nil {
+		return false, nil
+	}
+	var symlink *localrepo.SymlinkInWritePath
+	if !errors.As(err, &symlink) {
+		return false, err
+	}
+	addImportSymlinkWarning(warnings, host, symlink.Path)
+	return true, nil
+}
+
+func addImportSymlinkWarning(warnings *warningList, host, path string) {
+	warnings.AddUnique(fmt.Sprintf("host %s: import skipped destination under symlink %q", host, path))
 }

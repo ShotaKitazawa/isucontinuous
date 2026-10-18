@@ -264,6 +264,80 @@ func TestLocalRepo_LoadConf(t *testing.T) {
 	}
 }
 
+func TestLocalRepo_CreateFileDoesNotFollowSymlinks(t *testing.T) {
+	newRepo := func(t *testing.T) (*LocalRepo, string) {
+		t.Helper()
+		dir := t.TempDir()
+		repo, err := AttachLocalRepo(zaptest.NewLogger(t), kexec.New(), dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return repo, dir
+	}
+
+	t.Run("top-level symlink", func(t *testing.T) {
+		repo, dir := newRepo(t)
+		outside := t.TempDir()
+		if err := os.Symlink(outside, filepath.Join(dir, "isu1")); err != nil {
+			t.Fatal(err)
+		}
+		err := repo.CreateFile("isu1/app/config", []byte("secret"), 0644)
+		var symlink *SymlinkInWritePath
+		if !errors.As(err, &symlink) || symlink.Path != "isu1" {
+			t.Fatalf("err = %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(outside, "app", "config")); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("outside file exists or stat failed unexpectedly: %v", err)
+		}
+	})
+
+	t.Run("nested symlink", func(t *testing.T) {
+		repo, dir := newRepo(t)
+		outside := t.TempDir()
+		if err := os.Mkdir(filepath.Join(dir, "isu1"), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(outside, filepath.Join(dir, "isu1", "app")); err != nil {
+			t.Fatal(err)
+		}
+		err := repo.CreateFile("isu1/app/config", []byte("secret"), 0644)
+		var symlink *SymlinkInWritePath
+		if !errors.As(err, &symlink) || symlink.Path != filepath.Join("isu1", "app") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("broken symlink", func(t *testing.T) {
+		repo, dir := newRepo(t)
+		if err := os.Symlink(filepath.Join(dir, "missing"), filepath.Join(dir, "isu1")); err != nil {
+			t.Fatal(err)
+		}
+		err := repo.ValidateWritePath("isu1/app/config")
+		var symlink *SymlinkInWritePath
+		if !errors.As(err, &symlink) || symlink.Path != "isu1" {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("normal path", func(t *testing.T) {
+		repo, dir := newRepo(t)
+		if err := repo.CreateFile("isu1/app/config", []byte("ok"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		data, err := os.ReadFile(filepath.Join(dir, "isu1", "app", "config"))
+		if err != nil || string(data) != "ok" {
+			t.Fatalf("data = %q, err = %v", data, err)
+		}
+	})
+
+	t.Run("path outside repository", func(t *testing.T) {
+		repo, _ := newRepo(t)
+		if err := repo.CreateFile("../outside", []byte("no"), 0644); err == nil {
+			t.Fatal("expected an error")
+		}
+	})
+}
+
 func TestInitLocalRepo_SshCommand(t *testing.T) {
 	for _, c := range []struct{ key, want string }{
 		{"/keys/deploy key", "ssh -i '/keys/deploy key' -o IdentitiesOnly=yes"},
