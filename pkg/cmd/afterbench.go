@@ -22,7 +22,10 @@ type ConfigAfterBench struct {
 }
 
 func RunAfterBench(conf ConfigAfterBench) (*AfterBenchResult, error) {
-	ctx := context.Background()
+	return RunAfterBenchContext(context.Background(), conf)
+}
+
+func RunAfterBenchContext(ctx context.Context, conf ConfigAfterBench) (*AfterBenchResult, error) {
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
 		return nil, err
@@ -86,7 +89,9 @@ func runAfterBench(
 			// a failed host keeps its lock so that afterbench can run again: the logs are cleared by the next deploy
 			defer func() {
 				if err == nil {
-					releaseOwn(baseCtx, logger, lockers[host.Name], owner, host.Name)
+					cleanupCtx, cancel := lockCleanupContext(baseCtx)
+					defer cancel()
+					releaseOwn(cleanupCtx, logger, lockers[host.Name], owner, host.Name)
 				}
 			}()
 			if host.AfterBench.Target == "" {

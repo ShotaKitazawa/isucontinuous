@@ -21,7 +21,10 @@ type ConfigImport struct {
 }
 
 func RunImport(conf ConfigImport) (*ImportResult, error) {
-	ctx := context.Background()
+	return RunImportContext(context.Background(), conf)
+}
+
+func RunImportContext(ctx context.Context, conf ConfigImport) (*ImportResult, error) {
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
 		return nil, err

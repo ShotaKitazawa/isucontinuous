@@ -127,7 +127,7 @@ func contains(s, sub string) bool {
 func TestCallReturnsStructuredResultWithWarnings(t *testing.T) {
 	var got cmd.ConfigDeploy
 	runners := DefaultRunners()
-	runners.Deploy = func(c cmd.ConfigDeploy) (*cmd.DeployResult, error) {
+	runners.Deploy = func(_ context.Context, c cmd.ConfigDeploy) (*cmd.DeployResult, error) {
 		got = c
 		return &cmd.DeployResult{
 			Result: cmd.Result{
@@ -167,7 +167,7 @@ func TestCallReturnsStructuredResultWithWarnings(t *testing.T) {
 func TestCallDefaultsBranchToMaster(t *testing.T) {
 	var got cmd.ConfigSync
 	runners := DefaultRunners()
-	runners.Sync = func(c cmd.ConfigSync) (*cmd.SyncResult, error) {
+	runners.Sync = func(_ context.Context, c cmd.ConfigSync) (*cmd.SyncResult, error) {
 		got = c
 		return &cmd.SyncResult{}, nil
 	}
@@ -180,9 +180,36 @@ func TestCallDefaultsBranchToMaster(t *testing.T) {
 	}
 }
 
+func TestCallPropagatesCancellationToRunner(t *testing.T) {
+	started := make(chan struct{})
+	canceled := make(chan struct{})
+	runners := DefaultRunners()
+	runners.Sync = func(ctx context.Context, _ cmd.ConfigSync) (*cmd.SyncResult, error) {
+		close(started)
+		<-ctx.Done()
+		close(canceled)
+		return nil, ctx.Err()
+	}
+	cs := connect(t, Options{Runners: &runners}, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = cs.CallTool(ctx, &mcp.CallToolParams{Name: "sync", Arguments: map[string]any{}})
+	}()
+	<-started
+	cancel()
+	select {
+	case <-canceled:
+	case <-time.After(time.Second):
+		t.Fatal("runner context was not canceled")
+	}
+	<-done
+}
+
 func TestCallErrorCarriesKindHostTaskAndPartialResult(t *testing.T) {
 	runners := DefaultRunners()
-	runners.Deploy = func(c cmd.ConfigDeploy) (*cmd.DeployResult, error) {
+	runners.Deploy = func(_ context.Context, c cmd.ConfigDeploy) (*cmd.DeployResult, error) {
 		return &cmd.DeployResult{Result: cmd.Result{Hosts: []cmd.HostResult{{Host: "host1", Tasks: []string{"lock"}}}}},
 			myerrors.NewErrorHostTask("host2", "deploy", errors.New("boom"))
 	}
@@ -208,7 +235,7 @@ func TestCallErrorCarriesKindHostTaskAndPartialResult(t *testing.T) {
 
 func TestProgressNotifiedOnlyWithToken(t *testing.T) {
 	runners := DefaultRunners()
-	runners.Status = func(c cmd.ConfigStatus) (*cmd.StatusResult, error) {
+	runners.Status = func(_ context.Context, c cmd.ConfigStatus) (*cmd.StatusResult, error) {
 		r := c.Reporter
 		_ = r.Open([]string{"host1"}, 1)
 		r.TaskStarted("host1", "status")
@@ -260,7 +287,7 @@ func TestProgressNotifiedOnlyWithToken(t *testing.T) {
 func TestAfterBenchResponseIsLimited(t *testing.T) {
 	full := strings.Repeat("0123456789\n", 10)
 	runners := DefaultRunners()
-	runners.AfterBench = func(cmd.ConfigAfterBench) (*cmd.AfterBenchResult, error) {
+	runners.AfterBench = func(context.Context, cmd.ConfigAfterBench) (*cmd.AfterBenchResult, error) {
 		return &cmd.AfterBenchResult{Artifacts: []cmd.Artifact{
 			{Host: "web01", Path: "/p/abc.1/alp.txt", Size: len(full), Content: full},
 		}}, nil

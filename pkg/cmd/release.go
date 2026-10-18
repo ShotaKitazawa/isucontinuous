@@ -42,7 +42,10 @@ type ConfigRelease struct {
 }
 
 func RunRelease(conf ConfigRelease) (*ReleaseResult, error) {
-	ctx := context.Background()
+	return RunReleaseContext(context.Background(), conf)
+}
+
+func RunReleaseContext(ctx context.Context, conf ConfigRelease) (*ReleaseResult, error) {
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
 		return nil, err

@@ -25,7 +25,7 @@ var statusCmd = &cobra.Command{
 				KnownHostsPath: knownHosts,
 			},
 		}
-		r, err := cmd.RunStatus(conf)
+		r, err := cmd.RunStatusContext(c.Context(), conf)
 		printStatusResult(os.Stdout, r)
 		if r != nil {
 			printWarnings(os.Stderr, r.Warnings)

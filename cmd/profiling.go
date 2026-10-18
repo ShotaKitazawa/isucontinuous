@@ -25,7 +25,7 @@ var profilingCmd = &cobra.Command{
 				KnownHostsPath: knownHosts,
 			},
 		}
-		r, err := cmd.RunProfiling(conf)
+		r, err := cmd.RunProfilingContext(c.Context(), conf)
 		if r != nil {
 			printWarnings(os.Stderr, r.Warnings)
 		}

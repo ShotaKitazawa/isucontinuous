@@ -21,7 +21,10 @@ type ConfigInit struct {
 }
 
 func RunInit(conf ConfigInit) (*InitResult, error) {
-	ctx := context.Background()
+	return RunInitContext(context.Background(), conf)
+}
+
+func RunInitContext(ctx context.Context, conf ConfigInit) (*InitResult, error) {
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
 		return nil, err
@@ -40,7 +43,7 @@ func runInit(conf ConfigInit, ctx context.Context, logger *zap.Logger) (*InitRes
 		return nil, err
 	}
 	// Initialize local-repo
-	_, warnings, err := localrepo.InitLocalRepo(logger, exec.New(), conf.LocalRepoPath, conf.GitUsername, conf.GitEmail, conf.GitRemoteUrl, conf.SshKey)
+	_, warnings, err := localrepo.InitLocalRepoContext(ctx, logger, exec.New(), conf.LocalRepoPath, conf.GitUsername, conf.GitEmail, conf.GitRemoteUrl, conf.SshKey)
 	if err != nil {
 		return nil, err
 	}

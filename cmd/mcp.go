@@ -1,10 +1,7 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
-	"os"
-	"os/signal"
 	"strconv"
 	"strings"
 
@@ -24,9 +21,7 @@ var mcpCmd = &cobra.Command{
 			return err
 		}
 		// executed stays false: the "output log" notice would go to stdout and break the protocol
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-		defer stop()
-		return mcpserver.Run(ctx, mcpserver.Options{
+		return mcpserver.Run(c.Context(), mcpserver.Options{
 			Common: cmd.ConfigCommon{
 				LogLevel:       logLevel,
 				LogFilename:    logfile,

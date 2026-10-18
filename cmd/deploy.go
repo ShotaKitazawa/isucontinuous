@@ -25,7 +25,7 @@ var deployCmd = &cobra.Command{
 			IgnoreDrift: deployIgnoreDrift,
 			SlackToken:  deploySlackToken,
 		}
-		r, err := cmd.RunDeploy(conf)
+		r, err := cmd.RunDeployContext(c.Context(), conf)
 		printDeployResult(os.Stdout, r)
 		if r != nil {
 			printWarnings(os.Stderr, r.Warnings)

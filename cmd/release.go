@@ -27,7 +27,7 @@ var releaseCmd = &cobra.Command{
 			Force:           releaseForce,
 			IncludeDisabled: releaseIncludeDisabled,
 		}
-		r, err := cmd.RunRelease(conf)
+		r, err := cmd.RunReleaseContext(c.Context(), conf)
 		printReleaseResult(os.Stdout, r)
 		if r != nil {
 			printWarnings(os.Stderr, r.Warnings)

@@ -30,7 +30,10 @@ type ConfigStatus struct {
 }
 
 func RunStatus(conf ConfigStatus) (*StatusResult, error) {
-	ctx := context.Background()
+	return RunStatusContext(context.Background(), conf)
+}
+
+func RunStatusContext(ctx context.Context, conf ConfigStatus) (*StatusResult, error) {
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
 		return nil, err

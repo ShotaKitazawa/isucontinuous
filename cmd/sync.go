@@ -25,7 +25,7 @@ var syncCmd = &cobra.Command{
 			GitBranch: syncGitBranch,
 			Force:     syncForce,
 		}
-		_, err := cmd.RunSync(conf)
+		_, err := cmd.RunSyncContext(c.Context(), conf)
 		return err
 	},
 }

@@ -1,13 +1,16 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"github.com/spf13/cobra"
@@ -24,7 +27,9 @@ var rootCmd = &cobra.Command{
 var executed bool
 
 func Execute() {
-	err := rootCmd.Execute()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	err := rootCmd.ExecuteContext(ctx)
 	if executed {
 		fmt.Printf("=> output log to %s\n", logfile)
 	}

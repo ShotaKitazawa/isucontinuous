@@ -21,7 +21,10 @@ type ConfigDiff struct {
 }
 
 func RunDiff(conf ConfigDiff) (*DiffResult, error) {
-	ctx := context.Background()
+	return RunDiffContext(context.Background(), conf)
+}
+
+func RunDiffContext(ctx context.Context, conf ConfigDiff) (*DiffResult, error) {
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
 		return nil, err
