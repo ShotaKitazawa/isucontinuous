@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ShotaKitazawa/isucontinuous/pkg/cmd"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 )
 
 func printWarnings(w io.Writer, warnings []string) {
@@ -23,8 +24,8 @@ func printDeployResult(w io.Writer, r *cmd.DeployResult) {
 	}
 }
 
-func printPushResult(w io.Writer, r *cmd.PushResult) {
-	for _, f := range r.Files {
+func printPushedFiles(w io.Writer, files []localrepo.PushedFile) {
+	for _, f := range files {
 		if f.Deleted {
 			fmt.Fprintf(w, "committed: %s (deleted)\n", f.Path)
 		} else {

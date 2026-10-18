@@ -27,8 +27,6 @@ type ImportResult struct {
 	Files []localrepo.PushedFile
 }
 
-type SyncResult struct{ Result }
-
 type ProfilingResult struct{ Result }
 
 // Artifact is a file that afterbench produced on a host. Size is the original byte count;
@@ -57,11 +55,6 @@ type DeployResult struct {
 type DiffResult struct {
 	Result
 	Diffs []deploy.HostDiff
-}
-
-type PushResult struct {
-	Result
-	Files []localrepo.PushedFile
 }
 
 type warningList struct {

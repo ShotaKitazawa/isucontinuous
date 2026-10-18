@@ -125,7 +125,7 @@ func assertNoStdout(t *testing.T, f func()) {
 	}
 }
 
-func TestRunPush_Result(t *testing.T) {
+func TestPushForImport_Result(t *testing.T) {
 	repo := &fakeRepo{
 		branch: "master",
 		pushed: &localrepo.PushResult{
@@ -133,10 +133,10 @@ func TestRunPush_Result(t *testing.T) {
 			Warnings: []string{"a is large"},
 		},
 	}
-	var res *PushResult
+	var res *localrepo.PushResult
 	var err error
 	assertNoStdout(t, func() {
-		res, err = runPush(ConfigPush{GitBranch: "master"}, context.Background(), zaptest.NewLogger(t), repo)
+		res, err = pushForImport(context.Background(), repo, "master", "")
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -146,7 +146,7 @@ func TestRunPush_Result(t *testing.T) {
 	}
 }
 
-func TestRunPush_DisabledWarning(t *testing.T) {
+func TestPushForImport_DisabledWarning(t *testing.T) {
 	for _, c := range []struct {
 		branch   string
 		disabled bool
@@ -155,7 +155,7 @@ func TestRunPush_DisabledWarning(t *testing.T) {
 		{"main", true, 1}, {"master", true, 1}, {"main", false, 0}, {"feature", true, 0},
 	} {
 		repo := &fakeRepo{branch: c.branch, disabled: c.disabled, pushed: &localrepo.PushResult{}}
-		res, err := runPush(ConfigPush{GitBranch: c.branch}, context.Background(), zaptest.NewLogger(t), repo)
+		res, err := pushForImport(context.Background(), repo, c.branch, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -165,9 +165,9 @@ func TestRunPush_DisabledWarning(t *testing.T) {
 	}
 }
 
-func TestRunPush_WrongBranch(t *testing.T) {
+func TestPushForImport_WrongBranch(t *testing.T) {
 	repo := &fakeRepo{branch: ""}
-	res, err := runPush(ConfigPush{GitBranch: "master"}, context.Background(), zaptest.NewLogger(t), repo)
+	res, err := pushForImport(context.Background(), repo, "master", "")
 	if res != nil || err == nil || !strings.Contains(err.Error(), "<detached>") {
 		t.Errorf("res = %+v, err = %v", res, err)
 	}
@@ -326,10 +326,10 @@ func TestRunDiff(t *testing.T) {
 	})
 }
 
-func TestRunPush_PlaintextPasswordWarning(t *testing.T) {
+func TestPushForImport_PlaintextPasswordWarning(t *testing.T) {
 	for _, plain := range []bool{true, false} {
 		repo := &fakeRepo{branch: "feature", plain: plain, pushed: &localrepo.PushResult{}}
-		res, err := runPush(ConfigPush{GitBranch: "feature"}, context.Background(), zaptest.NewLogger(t), repo)
+		res, err := pushForImport(context.Background(), repo, "feature", "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -339,10 +339,10 @@ func TestRunPush_PlaintextPasswordWarning(t *testing.T) {
 	}
 }
 
-func TestRunSync_RefusesDirtyWorkingTree(t *testing.T) {
+func TestSyncForImport_RefusesDirtyWorkingTree(t *testing.T) {
 	var dirtyErr myerrors.LocalRepoDirty
 	repo := &fakeRepo{branch: "master", detached: true, dirty: []string{"untracked.txt"}}
-	_, err := runSync(ConfigSync{GitBranch: "master"}, context.Background(), zaptest.NewLogger(t), repo)
+	err := syncForImport(context.Background(), repo, "master")
 	if !errors.As(err, &dirtyErr) || len(dirtyErr.Paths) != 1 {
 		t.Fatalf("err = %v, want LocalRepoDirty", err)
 	}
@@ -351,19 +351,9 @@ func TestRunSync_RefusesDirtyWorkingTree(t *testing.T) {
 	}
 }
 
-func TestRunSync_Force(t *testing.T) {
-	repo := &fakeRepo{branch: "master", detached: true, dirty: []string{"untracked.txt"}}
-	if _, err := runSync(ConfigSync{GitBranch: "master", Force: true}, context.Background(), zaptest.NewLogger(t), repo); err != nil {
-		t.Fatal(err)
-	}
-	if !repo.reset || strings.Join(repo.calls, ",") != "merge:master" {
-		t.Errorf("reset = %v, calls = %v", repo.reset, repo.calls)
-	}
-}
-
-func TestRunSync_CleanDetachedResets(t *testing.T) {
+func TestSyncForImport_CleanDetachedResets(t *testing.T) {
 	repo := &fakeRepo{branch: "master", detached: true}
-	if _, err := runSync(ConfigSync{GitBranch: "master"}, context.Background(), zaptest.NewLogger(t), repo); err != nil {
+	if err := syncForImport(context.Background(), repo, "master"); err != nil {
 		t.Fatal(err)
 	}
 	if !repo.reset {

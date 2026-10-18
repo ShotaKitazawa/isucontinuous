@@ -29,7 +29,7 @@ var importCmd = &cobra.Command{
 		}
 		r, err := cmd.RunImportContext(c.Context(), conf)
 		if r != nil {
-			printPushResult(os.Stdout, &cmd.PushResult{Files: r.Files})
+			printPushedFiles(os.Stdout, r.Files)
 			printWarnings(os.Stderr, r.Warnings)
 		}
 		return err

@@ -134,12 +134,21 @@ func TestRunImportWorkflow(t *testing.T) {
 		}
 	})
 
-	t.Run("push failure returns acquired result for recovery", func(t *testing.T) {
+	t.Run("push failure is recovered by rerunning import", func(t *testing.T) {
 		want := errors.New("push failed")
 		repo := &fakeRepo{branch: "master", first: true, conf: &config.Config{}, pushErr: want}
 		result, err := run(t, repo)
 		if result == nil || !errors.Is(err, want) || repo.pushes != 1 {
 			t.Fatalf("result = %+v, err = %v, pushes = %d", result, err, repo.pushes)
+		}
+
+		// A failed git push leaves its local commit behind. A normal import retry
+		// synchronizes that clean, locally-ahead branch and pushes it again.
+		repo.first = false
+		repo.pushErr = nil
+		result, err = run(t, repo)
+		if err != nil || result == nil || repo.pushes != 2 {
+			t.Fatalf("retry result = %+v, err = %v, pushes = %d", result, err, repo.pushes)
 		}
 	})
 }

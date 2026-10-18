@@ -68,7 +68,7 @@ func runImport(
 			return nil, fmt.Errorf("current branch name is %s; initialize or select %s before the first import", currentBranch, conf.GitBranch)
 		}
 	} else {
-		if _, err := runSync(ConfigSync{ConfigCommon: conf.ConfigCommon, GitBranch: conf.GitBranch}, ctx, logger, repo); err != nil {
+		if err := syncForImport(ctx, repo, conf.GitBranch); err != nil {
 			return nil, err
 		}
 	}
@@ -77,11 +77,7 @@ func runImport(
 	if err != nil {
 		return result, err
 	}
-	pushResult, err := runPush(ConfigPush{
-		ConfigCommon: conf.ConfigCommon,
-		GitBranch:    conf.GitBranch,
-		Message:      conf.Message,
-	}, ctx, logger, repo)
+	pushResult, err := pushForImport(ctx, repo, conf.GitBranch, conf.Message)
 	if err != nil {
 		return result, err
 	}
