@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 )
 
 func (i *Installer) Alp(ctx context.Context, version string) error {
@@ -18,14 +19,12 @@ func (i *Installer) Alp(ctx context.Context, version string) error {
 		return nil
 	}
 
+	url := fmt.Sprintf("https://github.com/tkuchiki/alp/releases/download/%s/alp_linux_amd64.zip", version)
 	if version == "latest" {
-		// TODO
-		// get release
-		// get latest tag
+		url = "https://github.com/tkuchiki/alp/releases/latest/download/alp_linux_amd64.zip"
 	}
 	command := fmt.Sprintf(
-		`curl -sL https://github.com/tkuchiki/alp/releases/download/%s/alp_linux_amd64.zip -o /tmp/alp.zip`,
-		version)
+		`curl -fSL %s -o /tmp/alp.zip`, shell.Quote(url))
 	if _, stderr, err := i.shell.Exec(ctx, "", command); err != nil {
 		return myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
