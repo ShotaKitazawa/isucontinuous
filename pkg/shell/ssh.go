@@ -22,6 +22,15 @@ type SshClient struct {
 	sftp   *sftp.Client
 }
 
+const sshSignalGracePeriod = time.Second
+
+type sshSession interface {
+	Start(string) error
+	Wait() error
+	Signal(ssh.Signal) error
+	Close() error
+}
+
 func (c *SshClient) Host() string {
 	return c.host
 }
@@ -89,8 +98,51 @@ func (c *SshClient) Exec(ctx context.Context, basedir string, command string) (b
 	if basedir != "" {
 		command = "cd " + basedir + "; " + command
 	}
-	err = session.Run(command)
+	err = runSSHSession(ctx, session, command)
 	return trimNewLine(stdout), trimNewLine(stderr), err
+}
+
+func runSSHSession(ctx context.Context, session sshSession, command string) error {
+	return runSSHSessionWithGracePeriod(ctx, session, command, sshSignalGracePeriod)
+}
+
+func runSSHSessionWithGracePeriod(ctx context.Context, session sshSession, command string, gracePeriod time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := session.Start(command); err != nil {
+		return err
+	}
+	wait := make(chan error, 1)
+	go func() { wait <- session.Wait() }()
+
+	select {
+	case err := <-wait:
+		return err
+	case <-ctx.Done():
+	}
+
+	_ = session.Signal(ssh.SIGINT)
+	if waitForSSHSession(wait, gracePeriod) {
+		return ctx.Err()
+	}
+	_ = session.Signal(ssh.SIGTERM)
+	if waitForSSHSession(wait, gracePeriod) {
+		return ctx.Err()
+	}
+	_ = session.Close()
+	return ctx.Err()
+}
+
+func waitForSSHSession(wait <-chan error, gracePeriod time.Duration) bool {
+	timer := time.NewTimer(gracePeriod)
+	defer timer.Stop()
+	select {
+	case <-wait:
+		return true
+	case <-timer.C:
+		return false
+	}
 }
 
 func (c *SshClient) Execf(ctx context.Context, basedir string, cmd string, a ...interface{}) (bytes.Buffer, bytes.Buffer, error) {

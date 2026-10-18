@@ -25,7 +25,7 @@ var setupCmd = &cobra.Command{
 				KnownHostsPath: knownHosts,
 			},
 		}
-		r, err := cmd.RunSetup(conf)
+		r, err := cmd.RunSetupContext(c.Context(), conf)
 		if r != nil {
 			printWarnings(os.Stderr, r.Warnings)
 		}

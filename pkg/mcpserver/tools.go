@@ -52,7 +52,7 @@ type DiffInput struct {
 
 // adapt turns a cmd.Run* call into a tool handler; a failed run still returns what it completed, so the caller can see how far it got.
 func adapt[In any, Cfg any, Out any](
-	opts Options, build func(In, cmd.ConfigCommon) Cfg, run func(Cfg) (*Out, error),
+	opts Options, build func(In, cmd.ConfigCommon) Cfg, run func(context.Context, Cfg) (*Out, error),
 ) mcp.ToolHandlerFor[In, Out] {
 	return func(ctx context.Context, req *mcp.CallToolRequest, in In) (*mcp.CallToolResult, Out, error) {
 		common := opts.Common
@@ -60,7 +60,7 @@ func adapt[In any, Cfg any, Out any](
 		if token := req.Params.GetProgressToken(); token != nil {
 			common.Reporter = newProgressReporter(ctx, req.Session, token)
 		}
-		out, err := run(build(in, common))
+		out, err := run(ctx, build(in, common))
 		var result Out
 		if out != nil {
 			result = *out
@@ -105,8 +105,8 @@ func registerTools(s *mcp.Server, o Options) {
 	mcp.AddTool(s, &mcp.Tool{Name: "afterbench", Description: "Collect and parse the profile data and notify Slack. Releases the locks on success; on failure the locks are kept. " + artifactRule + hostKey + warnRule},
 		adapt(o, func(_ Empty, c cmd.ConfigCommon) cmd.ConfigAfterBench {
 			return cmd.ConfigAfterBench{ConfigCommon: c, SlackToken: o.SlackToken}
-		}, func(c cmd.ConfigAfterBench) (*cmd.AfterBenchResult, error) {
-			out, err := r.AfterBench(c)
+		}, func(ctx context.Context, c cmd.ConfigAfterBench) (*cmd.AfterBenchResult, error) {
+			out, err := r.AfterBench(ctx, c)
 			return limitArtifacts(out, o.Limits), err
 		}))
 	mcp.AddTool(s, &mcp.Tool{Name: "release", Description: "Release the host locks you hold. " + forceRule + warnRule},

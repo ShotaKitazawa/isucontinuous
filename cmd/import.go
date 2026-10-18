@@ -25,7 +25,7 @@ var importCmd = &cobra.Command{
 				KnownHostsPath: knownHosts,
 			},
 		}
-		r, err := cmd.RunImport(conf)
+		r, err := cmd.RunImportContext(c.Context(), conf)
 		if r != nil {
 			printWarnings(os.Stderr, r.Warnings)
 		}

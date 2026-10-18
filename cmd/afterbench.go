@@ -23,7 +23,7 @@ var afterbenchCmd = &cobra.Command{
 			},
 			SlackToken: afterbenchSlackToken,
 		}
-		r, err := cmd.RunAfterBench(conf)
+		r, err := cmd.RunAfterBenchContext(c.Context(), conf)
 		if r != nil {
 			printWarnings(os.Stderr, r.Warnings)
 		}

@@ -18,7 +18,10 @@ type ConfigPush struct {
 }
 
 func RunPush(conf ConfigPush) (*PushResult, error) {
-	ctx := context.Background()
+	return RunPushContext(context.Background(), conf)
+}
+
+func RunPushContext(ctx context.Context, conf ConfigPush) (*PushResult, error) {
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
 		return nil, err

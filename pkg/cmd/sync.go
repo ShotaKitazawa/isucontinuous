@@ -19,7 +19,10 @@ type ConfigSync struct {
 }
 
 func RunSync(conf ConfigSync) (*SyncResult, error) {
-	ctx := context.Background()
+	return RunSyncContext(context.Background(), conf)
+}
+
+func RunSyncContext(ctx context.Context, conf ConfigSync) (*SyncResult, error) {
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
 		return nil, err

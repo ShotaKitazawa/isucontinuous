@@ -29,7 +29,10 @@ type ConfigDeploy struct {
 }
 
 func RunDeploy(conf ConfigDeploy) (*DeployResult, error) {
-	ctx := context.Background()
+	return RunDeployContext(context.Background(), conf)
+}
+
+func RunDeployContext(ctx context.Context, conf ConfigDeploy) (*DeployResult, error) {
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
 		return nil, err
@@ -109,7 +112,9 @@ func runDeploy(
 	}
 	if !conf.IgnoreDrift {
 		if err := checkDrift(conf, ctx, logger, repo, isucontinuous.Hosts, deployers); err != nil {
-			releaseAllOwn(ctx, logger, lockers, isucontinuous.Hosts, owner)
+			cleanupCtx, cancel := lockCleanupContext(ctx)
+			releaseAllOwn(cleanupCtx, logger, lockers, isucontinuous.Hosts, owner)
+			cancel()
 			return result, err
 		}
 	}
@@ -121,7 +126,9 @@ func runDeploy(
 			// baseCtx, not ctx: ctx is cancelled when another host fails
 			defer func() {
 				if err != nil {
-					releaseOwn(baseCtx, logger, lockers[host.Name], owner, host.Name)
+					cleanupCtx, cancel := lockCleanupContext(baseCtx)
+					defer cancel()
+					releaseOwn(cleanupCtx, logger, lockers[host.Name], owner, host.Name)
 				}
 			}()
 			// Notify to Slack

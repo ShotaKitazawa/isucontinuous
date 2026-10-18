@@ -14,6 +14,12 @@ import (
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/lock"
 )
 
+const lockCleanupTimeout = 10 * time.Second
+
+func lockCleanupContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), lockCleanupTimeout)
+}
+
 // acquireAll takes the locks of all hosts or none: when any host fails, the locks created by this call are released.
 // A lock the owner already held is never released here, because it may belong to a deploy that is still being measured,
 // and its content is rewritten only after every host succeeded, so a failed call leaves it as it was.
@@ -52,9 +58,11 @@ func acquireAll(
 		}
 	}
 	if first != nil {
+		cleanupCtx, cancel := lockCleanupContext(ctx)
+		defer cancel()
 		for idx, host := range hosts {
 			if errs[idx] == nil && outcomes[idx] != hoststate.Reentered {
-				releaseOwn(ctx, logger, lockers[host.Name], owner, host.Name)
+				releaseOwn(cleanupCtx, logger, lockers[host.Name], owner, host.Name)
 			}
 		}
 		return nil, first
@@ -156,9 +164,11 @@ func lockForCommand(
 		return nil, err
 	}
 	return func() {
+		cleanupCtx, cancel := lockCleanupContext(ctx)
+		defer cancel()
 		for _, host := range hosts {
 			if outcomes[host.Name] != hoststate.Reentered {
-				releaseOwn(ctx, logger, lockers[host.Name], owner, host.Name)
+				releaseOwn(cleanupCtx, logger, lockers[host.Name], owner, host.Name)
 			}
 		}
 	}, nil

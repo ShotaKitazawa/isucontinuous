@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 
 	"go.uber.org/zap/zaptest"
 
@@ -53,6 +54,28 @@ func TestPerHostExec(t *testing.T) {
 		events := rep.Events()
 		if last := events[len(events)-1]; last.Kind != EventFailed || last.Task != "B" || last.Err != detached {
 			t.Errorf("last event = %+v", last)
+		}
+	})
+
+	t.Run("failure cancels sibling", func(t *testing.T) {
+		hosts := []config.Host{{Name: "host01"}, {Name: "host02"}}
+		started := make(chan struct{})
+		canceled := make(chan struct{})
+		taskFn := func(ctx context.Context, host config.Host) error {
+			if host.Name == "host01" {
+				<-started
+				return errors.New("boom")
+			}
+			close(started)
+			<-ctx.Done()
+			close(canceled)
+			return ctx.Err()
+		}
+		_, _ = perHostExec(zaptest.NewLogger(t), ctx, NewRecordingReporter(), hosts, []task{{"A", taskFn}})
+		select {
+		case <-canceled:
+		case <-time.After(time.Second):
+			t.Fatal("sibling context was not canceled")
 		}
 	})
 }

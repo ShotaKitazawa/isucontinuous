@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -17,14 +18,46 @@ import (
 	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/hoststate"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
+	"github.com/ShotaKitazawa/isucontinuous/pkg/shell"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/slack"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/template"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/afterbench"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/deploy"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/imports"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/install"
+	lockusecase "github.com/ShotaKitazawa/isucontinuous/pkg/usecases/lock"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/usecases/profiling"
 )
+
+type cancelAwareShell struct{ shell.Iface }
+
+func (s cancelAwareShell) Exec(ctx context.Context, basedir, command string) (bytes.Buffer, bytes.Buffer, error) {
+	if err := ctx.Err(); err != nil {
+		return bytes.Buffer{}, bytes.Buffer{}, err
+	}
+	return s.Iface.Exec(ctx, basedir, command)
+}
+
+func (s cancelAwareShell) Execf(ctx context.Context, basedir, command string, args ...interface{}) (bytes.Buffer, bytes.Buffer, error) {
+	if err := ctx.Err(); err != nil {
+		return bytes.Buffer{}, bytes.Buffer{}, err
+	}
+	return s.Iface.Execf(ctx, basedir, command, args...)
+}
+
+func (s cancelAwareShell) Deploy(ctx context.Context, src, dst string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return s.Iface.Deploy(ctx, src, dst)
+}
+
+func (s cancelAwareShell) ReadFile(ctx context.Context, path string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return s.Iface.ReadFile(ctx, path)
+}
 
 const (
 	me       = "me@pc"
@@ -480,6 +513,29 @@ func TestRunSetupAndImport_Lock(t *testing.T) {
 				t.Errorf("lock = %+v, %v", l, found)
 			}
 		})
+	}
+}
+
+func TestLockForCommandReleasesAfterCancellation(t *testing.T) {
+	e := newLockEnv(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	newLockers := func(logger *zap.Logger, hosts []config.Host) (map[string]*lockusecase.Locker, error) {
+		result := make(map[string]*lockusecase.Locker, len(hosts))
+		for _, host := range hosts {
+			result[host.Name] = lockusecase.NewWithShell(logger, cancelAwareShell{Iface: e.shells[host.Name]})
+		}
+		return result, nil
+	}
+	unlock, err := lockForCommand(ctx, zaptest.NewLogger(t), e.common(), e.repo, newLockers, e.hosts, "setup")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancel()
+	unlock()
+	for _, host := range e.hosts {
+		if _, found := e.held(host.Name); found {
+			t.Errorf("%s: lock remains after cancellation", host.Name)
+		}
 	}
 }
 

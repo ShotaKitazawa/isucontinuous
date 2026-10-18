@@ -29,7 +29,7 @@ var initCmd = &cobra.Command{
 			GitRemoteUrl: gitRemoteUrl,
 			SshKey:       sshKey,
 		}
-		r, err := cmd.RunInit(conf)
+		r, err := cmd.RunInitContext(c.Context(), conf)
 		if r != nil {
 			printWarnings(os.Stderr, r.Warnings)
 		}

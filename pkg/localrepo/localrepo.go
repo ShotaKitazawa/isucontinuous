@@ -72,12 +72,15 @@ type LocalRepo struct {
 }
 
 func InitLocalRepo(logger *zap.Logger, e kexec.Interface, path, username, email, remoteUrl, sshKey string) (*LocalRepo, []string, error) {
+	return InitLocalRepoContext(context.Background(), logger, e, path, username, email, remoteUrl, sshKey)
+}
+
+func InitLocalRepoContext(ctx context.Context, logger *zap.Logger, e kexec.Interface, path, username, email, remoteUrl, sshKey string) (*LocalRepo, []string, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, nil, err
 	}
 	l := &LocalRepo{*logger, shell.NewLocalClient(e), absPath}
-	ctx := context.Background()
 	// Initialize local-repo
 	if _, stderr, err := l.shell.Exec(ctx, l.absPath, "git init"); err != nil {
 		return nil, nil, myerrors.NewErrorCommandExecutionFailed(stderr)

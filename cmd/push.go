@@ -26,7 +26,7 @@ var pushCmd = &cobra.Command{
 			GitBranch: pushGitBranch,
 			Message:   pushMessage,
 		}
-		r, err := cmd.RunPush(conf)
+		r, err := cmd.RunPushContext(c.Context(), conf)
 		if r != nil {
 			printPushResult(os.Stdout, r)
 			printWarnings(os.Stderr, r.Warnings)

@@ -19,7 +19,10 @@ type ConfigProfiling struct {
 }
 
 func RunProfiling(conf ConfigProfiling) (*ProfilingResult, error) {
-	ctx := context.Background()
+	return RunProfilingContext(context.Background(), conf)
+}
+
+func RunProfilingContext(ctx context.Context, conf ConfigProfiling) (*ProfilingResult, error) {
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
 		return nil, err

@@ -18,7 +18,10 @@ type ConfigSetup struct {
 }
 
 func RunSetup(conf ConfigSetup) (*SetupResult, error) {
-	ctx := context.Background()
+	return RunSetupContext(context.Background(), conf)
+}
+
+func RunSetupContext(ctx context.Context, conf ConfigSetup) (*SetupResult, error) {
 	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
 	if err != nil {
 		return nil, err

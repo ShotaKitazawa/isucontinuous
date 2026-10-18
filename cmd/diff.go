@@ -27,7 +27,7 @@ var diffCmd = &cobra.Command{
 			GitRevision: diffGitRevision,
 			ShowDiff:    diffShowDiff,
 		}
-		r, err := cmd.RunDiff(conf)
+		r, err := cmd.RunDiffContext(c.Context(), conf)
 		printDiffResult(os.Stdout, r, diffShowDiff)
 		if r != nil {
 			printWarnings(os.Stderr, r.Warnings)
