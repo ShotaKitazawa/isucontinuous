@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by ADR-0013
 pr: "#36"
 date: 2026-10-13
 related: [ADR-0002, ADR-0003, ADR-0009]
@@ -104,4 +104,3 @@ LLM が `deploy` → ベンチマーク → `profiling` → `afterbench` → 結
 - progress は、クライアントが progress token を渡したときだけ通知する。タスクの開始と完了を 1 件ずつ数え、total は ホスト数×タスク数×2 とする。token がないときは何も出さない (既定の `pb` は標準出力に描画し、stdio を壊すため)。
 - ロックの所有者は `ConfigCommon.Owner` の既定 (`user@host`) のままにする。
 - `v1.3.1` の `CallToolParams.SetProgressToken` は `Meta` が nil だと token を保存しない。サーバ側の処理には影響しないため、テストでは `Meta` を直接設定する。
-

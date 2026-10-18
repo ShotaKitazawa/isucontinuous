@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by ADR-0011
 pr: "#41"
 date: 2026-10-13
 related: [ADR-0003, ADR-0004, ADR-0005, ADR-0007]
@@ -76,4 +76,3 @@ local-repo は、isucontinuous を実行するマシン上にある git の clon
 - リモートに到達できない場合、`init` はエラーにせず雛形を作り、`Warnings` に載せる。到達確認 (`git ls-remote`) は30秒でタイムアウトする。
 - リモートに複数のブランチがある場合、`init` が取り込むブランチは、リモートの HEAD が指すブランチ、`master`、`main`、先頭の順で選ぶ。
 - ロックに revision がない場合、`profiling` と `afterbench` は不一致として扱いエラーにする。
-

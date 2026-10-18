@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by ADR-0012
 pr: "#37"
 date: 2026-10-13
 related: [ADR-0003, ADR-0005, ADR-0006]
@@ -77,4 +77,3 @@ related: [ADR-0003, ADR-0005, ADR-0006]
 - `disabled` のホストは、環境変数の検証を含め、一切評価しない。PC に存在しない環境変数を参照していても読み込める。
 - 有効なホスト間で `name` (省略時は `host`) が重複したらエラーにする。ホストディレクトリ名と内部のキーが衝突するため。
 - main (master) への `push` 時の `disabled` の検査は、テンプレートを評価しない。環境変数なしで動く。
-

@@ -2,7 +2,7 @@
 status: proposed
 pr: nil
 date: 2026-10-13
-related: [ADR-0001, ADR-0002, ADR-0003, ADR-0004, ADR-0006]
+related: [ADR-0002, ADR-0003, ADR-0011, ADR-0012, ADR-0013]
 ---
 
 # ADR-0009: skill 設計
@@ -60,6 +60,11 @@ isucontinuous を MCP で公開しても、LLM が ISUCON を進めるには、�
 7. **push してから deploy する** ([0006](0006-local-repo-operation.md)): 未 push の変更はデプロイされない。local-repo は手で編集しない。WIP ブランチの運用
 8. **警告の読み方**: Slack 無効、`password` の平文、`disabled` の混入など
 9. **環境構築**: isucon-tare の prologue、環境変数、鍵の配布への参照 ([0005](0005-ssh-and-credentials.md))
+10. **import 対象の探索** ([0011](0011-server-side-import-workflow.md))
+   - SSH 越しに対象サーバを調査し、バージョン管理候補のパスと、判断に必要なメタデータを収集する
+   - 調査結果から `deploy.targets` の追記案を提示する
+   - SSH 鍵、token、password など認証情報の内容は取得・表示しない
+   - 明示的な依頼なしに `isucontinuous.yaml` を編集せず、`import` や `push` も実行しない
 
 ### 構成案
 
