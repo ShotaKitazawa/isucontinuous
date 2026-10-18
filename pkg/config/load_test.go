@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -72,6 +73,59 @@ func TestLoad(t *testing.T) {
 		}
 		if h := conf.Hosts[0]; !h.Local || h.Name != "localhost" {
 			t.Errorf("host = %+v", h)
+		}
+	})
+
+	t.Run("exact hostname match is local without changing name", func(t *testing.T) {
+		old := osHostname
+		osHostname = func() (string, error) { return "isu1", nil }
+		defer func() { osHostname = old }()
+
+		conf, err := Load([]byte("hosts:\n- host: isu1\n  name: primary\n"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if h := conf.Hosts[0]; !h.Local || h.Name != "primary" || h.Host != "isu1" {
+			t.Errorf("host = %+v", h)
+		}
+	})
+
+	t.Run("hostname mismatch remains remote", func(t *testing.T) {
+		old := osHostname
+		osHostname = func() (string, error) { return "isu2", nil }
+		defer func() { osHostname = old }()
+
+		conf, err := Load([]byte("hosts:\n- host: isu1\n"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if h := conf.Hosts[0]; h.Local || h.Name != "isu1" {
+			t.Errorf("host = %+v", h)
+		}
+	})
+
+	t.Run("explicit local remains local when hostname differs", func(t *testing.T) {
+		old := osHostname
+		osHostname = func() (string, error) { return "isu2", nil }
+		defer func() { osHostname = old }()
+
+		conf, err := Load([]byte("hosts:\n- host: isu1\n  local: true\n"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !conf.Hosts[0].Local {
+			t.Errorf("host = %+v", conf.Hosts[0])
+		}
+	})
+
+	t.Run("hostname error fails loading", func(t *testing.T) {
+		old := osHostname
+		osHostname = func() (string, error) { return "", errors.New("unavailable") }
+		defer func() { osHostname = old }()
+
+		_, err := Load([]byte("hosts:\n- host: isu1\n"))
+		if err == nil || !strings.Contains(err.Error(), "get local hostname") {
+			t.Fatalf("err = %v", err)
 		}
 	})
 

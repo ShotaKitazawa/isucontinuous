@@ -62,14 +62,14 @@ func properties(t *testing.T, tool *mcp.Tool) map[string]any {
 	return schema.Properties
 }
 
-func TestListToolsMatchesCLI(t *testing.T) {
+func TestListToolsExposesDevelopmentLoop(t *testing.T) {
 	tools := listTools(t, connect(t, Options{}, nil))
 	var names []string
 	for name := range tools {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	want := []string{"afterbench", "deploy", "diff", "import", "init", "profiling", "push", "release", "setup", "status", "sync"}
+	want := []string{"afterbench", "deploy", "diff", "profiling", "release", "setup", "status"}
 	if len(names) != len(want) {
 		t.Fatalf("tools = %v, want %v", names, want)
 	}
@@ -87,13 +87,10 @@ func TestForceAndDriftExposure(t *testing.T) {
 		tool, prop string
 		want       bool
 	}{
-		{"sync", "force", false},
 		{"deploy", "force", true},
 		{"deploy", "ignore_drift", true},
 		{"release", "force", true},
 		{"setup", "force", false},
-		{"import", "force", false},
-		{"push", "message", true},
 	} {
 		if got := has(c.tool, c.prop); got != c.want {
 			t.Errorf("%s.%s exposed = %v, want %v", c.tool, c.prop, got, c.want)
@@ -164,18 +161,18 @@ func TestCallReturnsStructuredResultWithWarnings(t *testing.T) {
 	}
 }
 
-func TestCallDefaultsBranchToMaster(t *testing.T) {
-	var got cmd.ConfigSync
+func TestCallDefaultsRevisionToMaster(t *testing.T) {
+	var got cmd.ConfigDeploy
 	runners := DefaultRunners()
-	runners.Sync = func(_ context.Context, c cmd.ConfigSync) (*cmd.SyncResult, error) {
+	runners.Deploy = func(_ context.Context, c cmd.ConfigDeploy) (*cmd.DeployResult, error) {
 		got = c
-		return &cmd.SyncResult{}, nil
+		return &cmd.DeployResult{}, nil
 	}
 	cs := connect(t, Options{Runners: &runners}, nil)
-	if _, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: "sync", Arguments: map[string]any{}}); err != nil {
+	if _, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: "deploy", Arguments: map[string]any{}}); err != nil {
 		t.Fatal(err)
 	}
-	if got.GitBranch != "master" || got.Force {
+	if got.GitRevision != "master" || got.Force {
 		t.Errorf("config = %+v", got)
 	}
 }
@@ -184,7 +181,7 @@ func TestCallPropagatesCancellationToRunner(t *testing.T) {
 	started := make(chan struct{})
 	canceled := make(chan struct{})
 	runners := DefaultRunners()
-	runners.Sync = func(ctx context.Context, _ cmd.ConfigSync) (*cmd.SyncResult, error) {
+	runners.Setup = func(ctx context.Context, _ cmd.ConfigSetup) (*cmd.SetupResult, error) {
 		close(started)
 		<-ctx.Done()
 		close(canceled)
@@ -195,7 +192,7 @@ func TestCallPropagatesCancellationToRunner(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		_, _ = cs.CallTool(ctx, &mcp.CallToolParams{Name: "sync", Arguments: map[string]any{}})
+		_, _ = cs.CallTool(ctx, &mcp.CallToolParams{Name: "setup", Arguments: map[string]any{}})
 	}()
 	<-started
 	cancel()

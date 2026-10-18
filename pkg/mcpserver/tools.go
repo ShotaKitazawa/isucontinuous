@@ -18,22 +18,6 @@ const (
 
 type Empty struct{}
 
-type InitInput struct {
-	Username  string `json:"username,omitempty" jsonschema:"git user.name for local-repo (default isucontinuous)"`
-	Email     string `json:"email,omitempty" jsonschema:"git user.email for local-repo"`
-	RemoteURL string `json:"remote_url,omitempty" jsonschema:"git remote URL of the repository to manage"`
-	SSHKey    string `json:"ssh_key,omitempty" jsonschema:"path of the deploy key used to access remote_url"`
-}
-
-type PushInput struct {
-	Branch  string `json:"branch,omitempty" jsonschema:"branch to push to (default master)"`
-	Message string `json:"message,omitempty" jsonschema:"commit message"`
-}
-
-type SyncInput struct {
-	Branch string `json:"branch,omitempty" jsonschema:"branch to synchronize with (default master)"`
-}
-
 type DeployInput struct {
 	Revision    string `json:"revision,omitempty" jsonschema:"branch name, tag name or commit hash to deploy (default master)"`
 	Force       bool   `json:"force,omitempty" jsonschema:"take over host locks held by someone else; ask the holder first"`
@@ -74,26 +58,10 @@ func adapt[In any, Cfg any, Out any](
 
 func registerTools(s *mcp.Server, o Options) {
 	r := o.Runners
-	mcp.AddTool(s, &mcp.Tool{Name: "init", Description: "Initialize local-repo from the remote repository. " + hostKey + warnRule},
-		adapt(o, func(in InitInput, c cmd.ConfigCommon) cmd.ConfigInit {
-			return cmd.ConfigInit{ConfigCommon: c, GitUsername: in.Username, GitEmail: in.Email, GitRemoteUrl: in.RemoteURL, SshKey: in.SSHKey}
-		}, r.Init))
 	mcp.AddTool(s, &mcp.Tool{Name: "setup", Description: "Install the software listed in isucontinuous.yaml on the hosts. Locks the hosts while it runs; if another owner holds a lock it fails, and the holder must release it (ask them, or use release with force). " + hostKey + warnRule},
 		adapt(o, func(_ Empty, c cmd.ConfigCommon) cmd.ConfigSetup {
 			return cmd.ConfigSetup{ConfigCommon: c}
 		}, r.Setup))
-	mcp.AddTool(s, &mcp.Tool{Name: "import", Description: "Import the files listed in isucontinuous.yaml from the hosts into local-repo. Locks the hosts while it runs; if another owner holds a lock it fails, and the holder must release it (ask them, or use release with force). " + hostKey + warnRule},
-		adapt(o, func(_ Empty, c cmd.ConfigCommon) cmd.ConfigImport {
-			return cmd.ConfigImport{ConfigCommon: c}
-		}, r.Import))
-	mcp.AddTool(s, &mcp.Tool{Name: "push", Description: "Commit local-repo and push it to the remote branch. Changes not pushed are not deployed. " + warnRule},
-		adapt(o, func(in PushInput, c cmd.ConfigCommon) cmd.ConfigPush {
-			return cmd.ConfigPush{ConfigCommon: c, GitBranch: orDefault(in.Branch, "master"), Message: in.Message}
-		}, r.Push))
-	mcp.AddTool(s, &mcp.Tool{Name: "sync", Description: "Synchronize local-repo with the remote branch. It refuses to run with uncommitted changes in local-repo. " + warnRule},
-		adapt(o, func(in SyncInput, c cmd.ConfigCommon) cmd.ConfigSync {
-			return cmd.ConfigSync{ConfigCommon: c, GitBranch: orDefault(in.Branch, "master")}
-		}, r.Sync))
 	mcp.AddTool(s, &mcp.Tool{Name: "deploy", Description: "Deploy the files of a revision to the hosts. Locks the hosts until afterbench or release. " + forceRule + driftRule + hostKey + warnRule},
 		adapt(o, func(in DeployInput, c cmd.ConfigCommon) cmd.ConfigDeploy {
 			return cmd.ConfigDeploy{ConfigCommon: c, GitRevision: orDefault(in.Revision, "master"), Force: in.Force, IgnoreDrift: in.IgnoreDrift, SlackToken: o.SlackToken}

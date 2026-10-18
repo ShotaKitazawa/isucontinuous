@@ -10,11 +10,7 @@ import (
 
 // Runners are the entry points the tools delegate to; tests replace them.
 type Runners struct {
-	Init       func(context.Context, cmd.ConfigInit) (*cmd.InitResult, error)
 	Setup      func(context.Context, cmd.ConfigSetup) (*cmd.SetupResult, error)
-	Import     func(context.Context, cmd.ConfigImport) (*cmd.ImportResult, error)
-	Push       func(context.Context, cmd.ConfigPush) (*cmd.PushResult, error)
-	Sync       func(context.Context, cmd.ConfigSync) (*cmd.SyncResult, error)
 	Deploy     func(context.Context, cmd.ConfigDeploy) (*cmd.DeployResult, error)
 	Profiling  func(context.Context, cmd.ConfigProfiling) (*cmd.ProfilingResult, error)
 	AfterBench func(context.Context, cmd.ConfigAfterBench) (*cmd.AfterBenchResult, error)
@@ -25,11 +21,7 @@ type Runners struct {
 
 func DefaultRunners() Runners {
 	return Runners{
-		Init:       cmd.RunInitContext,
 		Setup:      cmd.RunSetupContext,
-		Import:     cmd.RunImportContext,
-		Push:       cmd.RunPushContext,
-		Sync:       cmd.RunSyncContext,
 		Deploy:     cmd.RunDeployContext,
 		Profiling:  cmd.RunProfilingContext,
 		AfterBench: cmd.RunAfterBenchContext,
