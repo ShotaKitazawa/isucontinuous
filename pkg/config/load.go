@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -12,6 +13,8 @@ import (
 
 // validationRevision is a dummy value to check templates that reference .Git.Revision.
 const validationRevision = "validation"
+
+var osHostname = os.Hostname
 
 // Load parses isucontinuous.yaml, drops disabled hosts, expands the connection
 // settings and validates every template before any connection is made.
@@ -123,6 +126,13 @@ func resolveHost(t *template.Templator, host Host) (Host, error) {
 		return host, fmt.Errorf(
 			`host %q is no longer treated as local execution: set "local: true" to run on this machine, or specify the real address`,
 			host.Host)
+	}
+	hostname, err := osHostname()
+	if err != nil {
+		return host, fmt.Errorf("get local hostname: %w", err)
+	}
+	if host.Host == hostname {
+		host.Local = true
 	}
 	if host.Name == "" {
 		host.Name = host.Host
