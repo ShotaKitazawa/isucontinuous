@@ -1,6 +1,6 @@
 ---
 status: accepted
-pr: nil
+pr: "#47"
 date: 2026-10-18
 related: [ADR-0008]
 ---
