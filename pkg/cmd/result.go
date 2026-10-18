@@ -72,6 +72,17 @@ func (w *warningList) Add(msg string) {
 	w.list = append(w.list, msg)
 }
 
+func (w *warningList) AddUnique(msg string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	for _, existing := range w.list {
+		if existing == msg {
+			return
+		}
+	}
+	w.list = append(w.list, msg)
+}
+
 func (w *warningList) List() []string {
 	w.mu.Lock()
 	defer w.mu.Unlock()

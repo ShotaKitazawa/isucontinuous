@@ -54,6 +54,10 @@ func (f *fakeRepo) Push(ctx context.Context, m string) (*localrepo.PushResult, e
 func (f *fakeRepo) LoadConf() (*config.Config, error)   { return f.conf, nil }
 func (f *fakeRepo) HasDisabledHost() (bool, error)      { return f.disabled, nil }
 func (f *fakeRepo) HasPlaintextPassword() (bool, error) { return f.plain, nil }
+func (f *fakeRepo) ValidateWritePath(string) error      { return nil }
+func (f *fakeRepo) CreateFile(string, []byte, os.FileMode) error {
+	return nil
+}
 func (f *fakeRepo) SwitchDetachedBranch(ctx context.Context, r string) error {
 	f.calls = append(f.calls, "switch")
 	return nil
