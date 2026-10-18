@@ -43,9 +43,9 @@ isucontinuous を MCP で公開しても、LLM が ISUCON を進めるには、�
 ### skill に書く内容 (現時点で決まっているもの)
 
 1. **全体の流れ**
-   - 初期セットアップ: `init` → yaml の編集 → `setup` → `import` → `push`
+   - 初期セットアップ: `init` → yaml の編集 → `setup` → `import`
    - 開発ループ: 別クローンで編集 → commit → push → `deploy` → (Playwright MCP でベンチ) → `profiling` → `afterbench` → 結果の読解 → 記録 → 次の仮説
-   - 新しいファイルの管理: yaml に追記 → `sync` → `import` → `push`
+   - 新しいファイルの管理: yaml に追記 → `import`
 2. **ロックの扱い** ([0003](0003-host-lock.md))
    - `deploy` で取得し、`afterbench` の成功で解放される
    - `afterbench` が失敗したらロックは保持される。原因を直して再実行するか、`release` で解放する
@@ -64,7 +64,7 @@ isucontinuous を MCP で公開しても、LLM が ISUCON を進めるには、�
    - SSH 越しに対象サーバを調査し、バージョン管理候補のパスと、判断に必要なメタデータを収集する
    - 調査結果から `deploy.targets` の追記案を提示する
    - SSH 鍵、token、password など認証情報の内容は取得・表示しない
-   - 明示的な依頼なしに `isucontinuous.yaml` を編集せず、`import` や `push` も実行しない
+   - 明示的な依頼なしに `isucontinuous.yaml` を編集せず、`import` も実行しない
 
 ### 構成案
 
