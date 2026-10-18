@@ -4,65 +4,24 @@ import (
 	"context"
 	"fmt"
 
-	"go.uber.org/zap"
-	"k8s.io/utils/exec"
-
 	myerrors "github.com/ShotaKitazawa/isucontinuous/pkg/errors"
 	"github.com/ShotaKitazawa/isucontinuous/pkg/localrepo"
 )
 
-type ConfigPush struct {
-	ConfigCommon
-	GitBranch string
-	Message   string
-}
-
-func RunPush(conf ConfigPush) (*PushResult, error) {
-	return RunPushContext(context.Background(), conf)
-}
-
-func RunPushContext(ctx context.Context, conf ConfigPush) (*PushResult, error) {
-	logger, err := newLogger(conf.LogLevel, conf.LogFilename)
-	if err != nil {
-		return nil, err
-	}
-	// Attach local-repo
-	repo, err := localrepo.AttachLocalRepo(logger, exec.New(), conf.LocalRepoPath)
-	if err != nil {
-		return nil, err
-	}
-	unlock, err := repo.Lock(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer unlock()
-	return runPush(conf, ctx, logger, repo)
-}
-
-func runPush(
-	conf ConfigPush, ctx context.Context, logger *zap.Logger,
-	repo localrepo.LocalRepoIface,
-) (*PushResult, error) {
-	logger.Info("start push")
-	defer func() { logger.Info("finish push") }()
-	// Check currentBranch
+func pushForImport(ctx context.Context, repo localrepo.LocalRepoIface, branch, message string) (*localrepo.PushResult, error) {
 	currentBranch, err := repo.CurrentBranch(ctx)
 	if err != nil {
 		return nil, err
-	} else if currentBranch != conf.GitBranch {
+	}
+	if currentBranch != branch {
 		if currentBranch == "" {
 			currentBranch = "<detached>"
 		}
-		return nil, fmt.Errorf(
-			"current branch name is %s. Please exec `sync` command first to checkout to %s.",
-			currentBranch, conf.GitBranch,
-		)
+		return nil, fmt.Errorf("current branch name is %s; expected %s", currentBranch, branch)
 	}
-	// Fetch
 	if err := repo.Fetch(ctx); err != nil {
 		return nil, err
 	}
-	// Validate whether ${BRANCH} == remotes/origin/${BRANCH}
 	if ok, err := repo.DiffWithRemote(ctx); err != nil {
 		switch err.(type) {
 		case myerrors.GitBranchIsFirstCommit:
@@ -71,10 +30,9 @@ func runPush(
 			return nil, err
 		}
 	} else if !ok {
-		return nil, fmt.Errorf("there are differences between %s and remotes/origin/%s", conf.GitBranch, conf.GitBranch)
+		return nil, fmt.Errorf("there are differences between %s and remotes/origin/%s", branch, branch)
 	}
-	// Execute add, commit, and push
-	pushed, err := repo.Push(ctx, conf.Message)
+	pushed, err := repo.Push(ctx, message)
 	if err != nil {
 		return nil, err
 	}
@@ -92,8 +50,6 @@ func runPush(
 	} else if plain {
 		warnings = append(warnings, "isucontinuous.yaml has a plaintext password: pass it through a template such as {{.Env.X}} or use a key")
 	}
-	return &PushResult{
-		Result: Result{Warnings: warnings},
-		Files:  pushed.Files,
-	}, nil
+	pushed.Warnings = warnings
+	return pushed, nil
 }

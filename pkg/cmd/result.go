@@ -22,9 +22,10 @@ type InitResult struct{ Result }
 
 type SetupResult struct{ Result }
 
-type ImportResult struct{ Result }
-
-type SyncResult struct{ Result }
+type ImportResult struct {
+	Result
+	Files []localrepo.PushedFile
+}
 
 type ProfilingResult struct{ Result }
 
@@ -54,11 +55,6 @@ type DeployResult struct {
 type DiffResult struct {
 	Result
 	Diffs []deploy.HostDiff
-}
-
-type PushResult struct {
-	Result
-	Files []localrepo.PushedFile
 }
 
 type warningList struct {

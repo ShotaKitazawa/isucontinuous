@@ -19,6 +19,8 @@ import (
 
 type ConfigImport struct {
 	ConfigCommon
+	GitBranch string
+	Message   string
 }
 
 func RunImport(conf ConfigImport) (*ImportResult, error) {
@@ -50,10 +52,46 @@ func runImport(
 ) (*ImportResult, error) {
 	logger.Info("start import")
 	defer func() { logger.Info("finish import") }()
-	// Check currentBranch
-	if _, err := repo.CurrentBranch(ctx); err != nil {
+	if conf.GitBranch == "" {
+		conf.GitBranch = "master"
+	}
+	firstCommit, err := repo.IsFirstCommit(ctx)
+	if err != nil {
 		return nil, err
 	}
+	if firstCommit {
+		currentBranch, err := repo.CurrentBranch(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if currentBranch != conf.GitBranch {
+			return nil, fmt.Errorf("current branch name is %s; initialize or select %s before the first import", currentBranch, conf.GitBranch)
+		}
+	} else {
+		if err := syncForImport(ctx, repo, conf.GitBranch); err != nil {
+			return nil, err
+		}
+	}
+
+	result, err := runImportFiles(conf, ctx, logger, repo, newImporters, newLockersFunc)
+	if err != nil {
+		return result, err
+	}
+	pushResult, err := pushForImport(ctx, repo, conf.GitBranch, conf.Message)
+	if err != nil {
+		return result, err
+	}
+	result.Files = pushResult.Files
+	for _, warning := range pushResult.Warnings {
+		result.Warnings = appendUnique(result.Warnings, warning)
+	}
+	return result, nil
+}
+
+func runImportFiles(
+	conf ConfigImport, ctx context.Context, logger *zap.Logger,
+	repo localrepo.LocalRepoIface, newImporters imports.NewImportersFunc, newLockersFunc lock.NewLockersFunc,
+) (*ImportResult, error) {
 	// load isucontinuous.yaml
 	isucontinuous, err := repo.LoadConf()
 	if err != nil {
@@ -62,7 +100,7 @@ func runImport(
 	// Importing while someone else experiments would take in a half-changed state
 	unlock, err := lockForCommand(ctx, logger, conf.ConfigCommon, repo, newLockersFunc, isucontinuous.Hosts, "import")
 	if err != nil {
-		return &ImportResult{Result{Warnings: isucontinuous.Warnings}}, err
+		return &ImportResult{Result: Result{Warnings: isucontinuous.Warnings}}, err
 	}
 	defer unlock()
 	warnings := &warningList{}
@@ -148,7 +186,16 @@ func runImport(
 			return nil
 		},
 	}})
-	return &ImportResult{Result{Hosts: hosts, Warnings: warnings.List()}}, err
+	return &ImportResult{Result: Result{Hosts: hosts, Warnings: warnings.List()}}, err
+}
+
+func appendUnique(values []string, value string) []string {
+	for _, existing := range values {
+		if existing == value {
+			return values
+		}
+	}
+	return append(values, value)
 }
 
 func checkImportDestination(repo localrepo.LocalRepoIface, warnings *warningList, host, destination string) (bool, error) {
