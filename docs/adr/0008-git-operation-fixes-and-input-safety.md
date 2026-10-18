@@ -16,7 +16,7 @@ MCP を前提としない既存の不具合と、LLM が入力する値を扱う
 | 案 | 却下理由 |
 |---|---|
 | `Push()` の失敗を引き続きログだけにする | LLM が成功と誤認する |
-| `safe.directory` をコマンドラインで指定する | 保護された設定の扱いが git のバージョンに依存し、古い Ubuntu の git では効かない可能性がある (未検証) |
+| `safe.directory` をコマンドラインで指定する | 採用。調査結果と詳細は [ADR-0010](0010-command-scoped-safe-directory.md) に記録する |
 | `git add -A` を、ファイルを指定した `git add` に変える | `import` の結果をまとめて取り込む現状の動作を変えてしまう |
 
 ## 決定
@@ -44,7 +44,7 @@ MCP を前提としない既存の不具合と、LLM が入力する値を扱う
   - 対象がすでに git リポジトリだと、`rm -rf .git` で**既存の履歴が消える**。
   - 対象が別のリポジトリのサブディレクトリだと、入れ子の `git init` が親の `.gitignore` を無視する。
 - 修正: 対象が既存のワークツリー内なら、そのリポジトリを使う (`git rev-parse --show-toplevel`)。そうでなければ、一時ディレクトリを `--git-dir`、対象を `--work-tree` に指定する。いずれも対象に `.git` を作らず、削除もしない。
-- `safe.directory` のグローバル設定への追記は、既存でなければ行う (重複して追記しない)。
+- `safe.directory` はグローバル設定を変更せず、Git コマンド単位で指定する。詳細は [ADR-0010](0010-command-scoped-safe-directory.md) を参照する。
 
 ### C5: `Host.Port` の yaml タグ
 
@@ -75,11 +75,11 @@ MCP を前提としない既存の不具合と、LLM が入力する値を扱う
 
 ## 未決事項
 
-- [ ] `safe.directory` を使わない方法の有無の調査 (未着手。現状は未登録のときだけ追記する)
+- [x] `safe.directory` を永続設定せずに扱う方法を調査し、コマンド単位の設定を採用した ([ADR-0010](0010-command-scoped-safe-directory.md))
 
 ## 実装時に決めたこと
 
 - B4: `revision` / `branch` はクォートではなく、シェルを介さない引数配列 (`LocalClient.ExecArgs`) で git に渡す。検証は `git check-ref-format` の規則に先頭 `-` の禁止を加えたもので、`HEAD~1` のようなリビジョン式は拒否する (対応するのはブランチ名・タグ・コミットハッシュ)。クォートの実装誤りが入り込む余地をなくすため。
 - C1: コミット対象がなくても `git push origin HEAD` は実行する (未 push のコミットを送れるようにするため)。コミットのない新規リポジトリでの push 失敗は、エラーとして返る。
 - C3: 結果は `localrepo.PushResult` (`Files`: パス・サイズ・削除かどうか、`Warnings []string`) で返す。CLI は一覧と警告を標準出力に出す。
-- C4: 一覧から空行を除く (出力が空のときに `[""]` を返さない)。`safe.directory` は対象ディレクトリについてのみ確認・追記する。
+- C4: 一覧から空行を除く (出力が空のときに `[""]` を返さない)。`safe.directory` の後続判断は [ADR-0010](0010-command-scoped-safe-directory.md) で置き換えた。
