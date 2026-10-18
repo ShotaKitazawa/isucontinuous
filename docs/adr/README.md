@@ -18,6 +18,9 @@ isucontinuous を LLM から利用できる形 (MCP サーバ化) にするた�
 | [0008](0008-git-operation-fixes-and-input-safety.md) | 既存実装の修正と入力の安全性 | MCP 前提とは独立した不具合修正 |
 | [0009](0009-skill-design.md) | skill 設計 | LLM 向けの手順と知識の置き場所 |
 | [0010](0010-command-scoped-safe-directory.md) | command-scoped `safe.directory` | import時にglobal Git configを変更しない |
+| [0011](0011-server-side-import-workflow.md) | サーバ側で import ワークフローを実行する | 取り込みの実行場所、統合 import、symlink の扱い |
+| [0012](0012-hostname-local-detection.md) | 設定ホスト名との一致でローカル実行を自動判定する | サーバ上の自ホストを SSH なしで扱う |
+| [0013](0013-mcp-tool-boundary.md) | MCP は開発ループで使うツールだけを公開する | CLI 専用操作と MCP 公開操作の境界 |
 
 ## 依存関係と実装順序の案
 
@@ -29,6 +32,9 @@ isucontinuous を LLM から利用できる形 (MCP サーバ化) にするた�
   ├─ 0005 (SSH・認証)        └─ 0007 (drift) ───┘
   │
   └─ 0001 (Reporter・型付き結果) ── 0002 (通知・上限) ── MCP サーバ本体 ── 0009 (skill)
+
+0011 (サーバ側 import) ──┬─ 0012 (hostname による local 判定)
+                          └─ 0013 (MCP 公開境界)
 ```
 
 1. **0008**: MCP を前提としない修正。先に着手できる。
