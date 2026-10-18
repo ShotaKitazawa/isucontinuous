@@ -38,6 +38,10 @@ type fakeRepo struct {
 	dirty    []string
 	reset    bool
 	detached bool
+	first    bool
+	loadErr  error
+	pushErr  error
+	pushes   int
 }
 
 func (f *fakeRepo) CurrentBranch(ctx context.Context) (string, error) {
@@ -46,12 +50,26 @@ func (f *fakeRepo) CurrentBranch(ctx context.Context) (string, error) {
 	}
 	return f.branch, nil
 }
-func (f *fakeRepo) Fetch(ctx context.Context) error                  { return nil }
+func (f *fakeRepo) Fetch(ctx context.Context) error {
+	return nil
+}
 func (f *fakeRepo) DiffWithRemote(ctx context.Context) (bool, error) { return true, nil }
 func (f *fakeRepo) Push(ctx context.Context, m string) (*localrepo.PushResult, error) {
+	f.pushes++
+	if f.pushErr != nil {
+		return nil, f.pushErr
+	}
+	if f.pushed == nil {
+		return &localrepo.PushResult{}, nil
+	}
 	return f.pushed, nil
 }
-func (f *fakeRepo) LoadConf() (*config.Config, error)   { return f.conf, nil }
+func (f *fakeRepo) LoadConf() (*config.Config, error) {
+	if f.loadErr != nil {
+		return nil, f.loadErr
+	}
+	return f.conf, nil
+}
 func (f *fakeRepo) HasDisabledHost() (bool, error)      { return f.disabled, nil }
 func (f *fakeRepo) HasPlaintextPassword() (bool, error) { return f.plain, nil }
 func (f *fakeRepo) ValidateWritePath(string) error      { return nil }
@@ -79,8 +97,10 @@ func (f *fakeRepo) Reset(ctx context.Context) error {
 }
 func (f *fakeRepo) SwitchAndMerge(ctx context.Context, branch string) error {
 	f.calls = append(f.calls, "merge:"+branch)
+	f.branch = branch
 	return nil
 }
+func (f *fakeRepo) IsFirstCommit(context.Context) (bool, error) { return f.first, nil }
 func (f *fakeRepo) GetHeadCommit(ctx context.Context) (*localrepo.CommitInfo, error) {
 	return &localrepo.CommitInfo{Hash: "abc1234", Message: "message", Date: time.Date(2026, 10, 13, 1, 2, 3, 0, time.UTC)}, nil
 }

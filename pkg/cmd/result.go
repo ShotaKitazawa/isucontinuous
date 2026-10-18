@@ -22,7 +22,10 @@ type InitResult struct{ Result }
 
 type SetupResult struct{ Result }
 
-type ImportResult struct{ Result }
+type ImportResult struct {
+	Result
+	Files []localrepo.PushedFile
+}
 
 type SyncResult struct{ Result }
 

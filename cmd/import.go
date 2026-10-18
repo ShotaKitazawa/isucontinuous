@@ -24,15 +24,27 @@ var importCmd = &cobra.Command{
 				LocalRepoPath:  localRepo,
 				KnownHostsPath: knownHosts,
 			},
+			GitBranch: importGitBranch,
+			Message:   importMessage,
 		}
 		r, err := cmd.RunImportContext(c.Context(), conf)
 		if r != nil {
+			printPushResult(os.Stdout, &cmd.PushResult{Files: r.Files})
 			printWarnings(os.Stderr, r.Warnings)
 		}
 		return err
 	},
 }
 
+var (
+	importGitBranch string
+	importMessage   string
+)
+
 func init() {
 	rootCmd.AddCommand(importCmd)
+	importCmd.PersistentFlags().StringVarP(&importGitBranch, "branch", "b", "master",
+		"branch-name to synchronize and push to Git remote-repo")
+	importCmd.PersistentFlags().StringVarP(&importMessage, "message", "m", "",
+		"commit message (default: \"commit by isucontinuous\")")
 }

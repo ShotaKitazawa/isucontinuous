@@ -265,15 +265,15 @@ func (l *LocalRepo) SwitchAndMerge(ctx context.Context, branch string) error {
 		}
 	} else {
 		if currentBranch != branch {
-			// checkout & merge
+			// checkout before merging the remote branch
 			if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "checkout", branch); err != nil {
 				return myerrors.NewErrorCommandExecutionFailed(stderr)
 			}
-			if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "merge", "origin/"+branch); err != nil {
-				return myerrors.NewErrorCommandExecutionFailed(stderr)
-			}
-			return nil
 		}
+		if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "merge", "origin/"+branch); err != nil {
+			return myerrors.NewErrorCommandExecutionFailed(stderr)
+		}
+		return nil
 	}
 	return nil
 }
@@ -371,18 +371,28 @@ func (l *LocalRepo) IsFirstCommit(ctx context.Context) (bool, error) {
 }
 
 func (l *LocalRepo) DiffWithRemote(ctx context.Context) (bool, error) {
-	// get current branch name
 	currentBranch, err := l.CurrentBranch(ctx)
 	if err != nil {
 		return false, err
 	}
-	if stdout, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "diff", "origin/"+currentBranch, currentBranch, "--"); err != nil {
+	remoteRef := "refs/remotes/origin/" + currentBranch
+	if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "rev-parse", "--verify", "--quiet", remoteRef); err != nil {
 		if isFirstCommit, _ := l.IsFirstCommit(ctx); isFirstCommit {
 			return false, myerrors.NewErrorGitBranchIsFirstCommit()
 		}
+		var exitErr kexec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitStatus() == 1 {
+			// A local commit left by a failed first push is safe to retry.
+			return true, nil
+		}
 		return false, myerrors.NewErrorCommandExecutionFailed(stderr)
-	} else if stdout.String() != "" {
-		return false, nil
+	}
+	if _, stderr, err := l.shell.ExecArgs(ctx, l.absPath, "git", "merge-base", "--is-ancestor", remoteRef, currentBranch); err != nil {
+		var exitErr kexec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitStatus() == 1 {
+			return false, nil
+		}
+		return false, myerrors.NewErrorCommandExecutionFailed(stderr)
 	}
 	return true, nil
 }

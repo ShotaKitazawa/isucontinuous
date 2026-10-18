@@ -124,6 +124,29 @@ func TestLocalRepo_SwitchAndMerge(t *testing.T) {
 	}
 }
 
+func TestLocalRepo_SwitchAndMergeUpdatesCurrentBranch(t *testing.T) {
+	ctx := context.Background()
+	repo, work, remote := newTestRepo(t)
+	seed := filepath.Join(filepath.Dir(remote), "updater")
+	runGit(t, filepath.Dir(remote), "clone", remote, seed)
+	if err := os.WriteFile(filepath.Join(seed, "remote.txt"), []byte("remote"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, seed, "add", "remote.txt")
+	runGit(t, seed, "commit", "-m", "remote update")
+	runGit(t, seed, "push", "origin", "master")
+
+	if err := repo.Fetch(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SwitchAndMerge(ctx, "master"); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(filepath.Join(work, "remote.txt")); err != nil || string(data) != "remote" {
+		t.Fatalf("data = %q, err = %v", data, err)
+	}
+}
+
 func TestLocalRepo_SwitchDetachedBranch(t *testing.T) {
 	ctx := context.Background()
 	repo, work, _ := newTestRepo(t)
@@ -218,13 +241,26 @@ func TestLocalRepo_Push(t *testing.T) {
 		}
 	})
 	t.Run("push failure is returned", func(t *testing.T) {
-		repo, work, _ := newTestRepo(t)
+		repo, work, remote := newTestRepo(t)
 		runGit(t, work, "remote", "set-url", "origin", filepath.Join(work, "no-such-remote"))
 		if err := os.WriteFile(filepath.Join(work, "b.txt"), []byte("x"), 0644); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := repo.Push(ctx, ""); err == nil {
 			t.Error("expected an error when git push fails")
+		}
+		if got := runGit(t, work, "log", "-1", "--format=%s"); got != "commit by isucontinuous\n" {
+			t.Fatalf("local commit after push failure = %q", got)
+		}
+		runGit(t, work, "remote", "set-url", "origin", remote)
+		if ok, err := repo.DiffWithRemote(ctx); err != nil || !ok {
+			t.Fatalf("failed push must be retryable: ok = %v, err = %v", ok, err)
+		}
+		if _, err := repo.Push(ctx, ""); err != nil {
+			t.Fatalf("retry push: %v", err)
+		}
+		if got := runGit(t, remote, "log", "-1", "--format=%s", "master"); got != "commit by isucontinuous\n" {
+			t.Fatalf("remote commit after retry = %q", got)
 		}
 	})
 	t.Run("commit failure is returned", func(t *testing.T) {
@@ -238,6 +274,47 @@ func TestLocalRepo_Push(t *testing.T) {
 		}
 		if _, err := repo.Push(ctx, ""); err == nil {
 			t.Error("expected an error when git commit fails")
+		}
+	})
+}
+
+func TestLocalRepo_DiffWithRemoteAllowsOnlyLocalAhead(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("same revision", func(t *testing.T) {
+		repo, _, _ := newTestRepo(t)
+		if ok, err := repo.DiffWithRemote(ctx); err != nil || !ok {
+			t.Fatalf("ok = %v, err = %v", ok, err)
+		}
+	})
+
+	t.Run("local ahead", func(t *testing.T) {
+		repo, work, _ := newTestRepo(t)
+		if err := os.WriteFile(filepath.Join(work, "local.txt"), []byte("local"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		runGit(t, work, "add", "local.txt")
+		runGit(t, work, "commit", "-m", "local")
+		if ok, err := repo.DiffWithRemote(ctx); err != nil || !ok {
+			t.Fatalf("ok = %v, err = %v", ok, err)
+		}
+	})
+
+	t.Run("remote ahead", func(t *testing.T) {
+		repo, _, remote := newTestRepo(t)
+		updater := filepath.Join(filepath.Dir(remote), "remote-ahead")
+		runGit(t, filepath.Dir(remote), "clone", remote, updater)
+		if err := os.WriteFile(filepath.Join(updater, "remote.txt"), []byte("remote"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		runGit(t, updater, "add", "remote.txt")
+		runGit(t, updater, "commit", "-m", "remote")
+		runGit(t, updater, "push", "origin", "master")
+		if err := repo.Fetch(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if ok, err := repo.DiffWithRemote(ctx); err != nil || ok {
+			t.Fatalf("ok = %v, err = %v", ok, err)
 		}
 	})
 }
