@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
-	"strings"
 	"testing"
 
 	"go.uber.org/zap/zaptest"
@@ -153,22 +152,50 @@ func TestImporter_ListUntrackedFiles(t *testing.T) {
 		}
 	})
 
-	t.Run("safe.directory is not duplicated", func(t *testing.T) {
+	t.Run("global config is unchanged", func(t *testing.T) {
 		imp := newTestImporter(t)
 		dir := t.TempDir()
 		writeFile(t, filepath.Join(dir, "a"), "a")
+		gitIn(t, dir, "config", "--global", "--add", "safe.directory", "/sentinel/one")
+		gitIn(t, dir, "config", "--global", "--add", "safe.directory", "/sentinel/two")
+		global := os.Getenv("GIT_CONFIG_GLOBAL")
+		before, err := os.ReadFile(global)
+		if err != nil {
+			t.Fatal(err)
+		}
 		for i := 0; i < 2; i++ {
 			if _, err := imp.ListUntrackedFiles(ctx, dir); err != nil {
 				t.Fatal(err)
 			}
 		}
-		out, err := osexec.Command("git", "config", "--global", "--get-all", "safe.directory").Output()
+		after, err := os.ReadFile(global)
 		if err != nil {
 			t.Fatal(err)
 		}
-		abs, _ := filepath.Abs(dir)
-		if n := strings.Count(string(out), abs+"\n"); n != 1 {
-			t.Errorf("safe.directory has %d entries for %s: %q", n, abs, out)
+		if !reflect.DeepEqual(after, before) {
+			t.Errorf("global git config changed:\nbefore: %q\nafter:  %q", before, after)
+		}
+	})
+
+	t.Run("paths with spaces and single quotes", func(t *testing.T) {
+		imp := newTestImporter(t)
+		base := t.TempDir()
+		for _, repository := range []bool{false, true} {
+			dir := filepath.Join(base, "repo with ' quote", map[bool]string{false: "plain", true: "existing"}[repository])
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				t.Fatal(err)
+			}
+			if repository {
+				gitIn(t, dir, "init")
+			}
+			writeFile(t, filepath.Join(dir, "untracked file"), "content")
+			files, err := imp.ListUntrackedFiles(ctx, dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(files, []string{"untracked file"}) {
+				t.Errorf("repository=%v: files = %v", repository, files)
+			}
 		}
 	})
 }
