@@ -13,17 +13,9 @@ isucontinuous には以下のそれぞれのフェーズを意識したコマン
 
 <img src="./images/setup.jpg?raw=true" width=533 height=300>
 
-* `import`: サーバ上の任意のファイルを取得し Git ローカルリポジトリの管理下にコピーする
+* `import`: サーバ上の任意のファイルを取得し、Git ローカルリポジトリへcommit・pushする
 
 <img src="./images/import.jpg?raw=true" width=533 height=300>
-
-* `push`: Git ローカルリポジトリの更新を Git リモートリポジトリにプッシュする
-
-<img src="./images/push.jpg?raw=true" width=533 height=300>
-
-* `sync`: Git リモートリポジトリの内容を Git ローカルリポジトリに反映する
-
-<img src="./images/sync.jpg?raw=true" width=533 height=300>
 
 * `deploy`: 任意のリビジョンにおける Git リモートリポジトリ管理下のファイルをサーバ上にデプロイする
 
@@ -41,13 +33,16 @@ isucontinuous には以下のそれぞれのフェーズを意識したコマン
 
 ### 1. 初期セットアップ
 
-1. `init` : ローカルリポジトリの新規作成
+初期取り込みは1台目の対象サーバ上で実行します。2、3台目のファイルは1台目からLAN内のSSHで取得するため、全コンテンツを開発者PCへWAN転送しません。
+
+1. `init` : 1台目にimport用ローカルリポジトリを新規作成
 1. isucontinuous.yaml の編集
 1. `setup` : 各種開発用ソフトウェアのインストール
-1. `import` : 各種設定ファイルやソースコードを Git で管理
-1. `push` : GitHub に push
+1. `import` : 各種設定ファイルやソースコードを取得し、最初のcommitをGitHubへpush
 
 ### 2. 開発・デプロイ
+
+以降は各開発者のローカルPCからCLIまたはMCPを実行します。
 
 1. GitHub に push したリポジトリを元に各メンバーが各ブランチで作業
 1. `deploy` : 特定リビジョンの各ファイルを各サーバにデプロイ
@@ -58,7 +53,6 @@ isucontinuous には以下のそれぞれのフェーズを意識したコマン
 
 1. redis 等、サーバーに新たなミドルウェアがインストールされる
 1. isucontinuous.yaml に新たな import/deploy 対象を追記
-1. `sync` : ローカルリポジトリを remotes/origin/master と同期
-1. `import` : 各種設定ファイルやソースコードを Git で管理
-1. `push` : GitHub に push
+1. 1台目の対象サーバ上で`import` : remote branchとの同期、対象ファイルの取得、commit、pushを一度に実行
 
+`import`の取得失敗時は取得済みファイルが作業ツリーに、push失敗時はcommitがローカルに残ります。原因を解消し、ホストロックが残っていれば`release`した後、`import`を再実行します。
